@@ -1,8 +1,8 @@
 {
-  "name": "copyright",
+  "name": "kopeer",
   "version": "0.0.1",
   "description": "Copy files and folders",
-  "main": "./lib/copyright.js",
+  "main": "./lib/kopeer.js",
   "directories": {
     "test": "test"
   },
@@ -11,7 +11,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git@bitbucket.org:felixschl/copyright"
+    "url": "git@github.com:felixschl/kopeer"
   },
   "keywords": [
     "copy"

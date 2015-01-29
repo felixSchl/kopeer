@@ -4,10 +4,10 @@ var assert       = require('assert')
   , rimraf       = require('rimraf')
   , _            = require('lodash')
   , readDirFiles = require('read-dir-files')
-  , copyright    = require('../lib/copyright.js')
+  , kopeer       = require('../lib/kopeer.js')
 ;
 
-describe('copyright', function () {
+describe('kopeer', function () {
     describe('regular files and directories', function () {
         var fixtures = path.join(__dirname, 'regular-fixtures')
           , src = path.join(fixtures, 'src')
@@ -16,7 +16,7 @@ describe('copyright', function () {
 
         before(function (done) {
             rimraf(out, function() {
-                copyright.copyFolder(src, out).then(function() {
+                kopeer.copyFolder(src, out).then(function() {
                     done();
                 });
             });
@@ -37,7 +37,7 @@ describe('copyright', function () {
         describe('when copying files using filter', function () {
             before(function (done) {
                 rimraf(out, function () {
-                    copyright.copyFolder(
+                    kopeer.copyFolder(
                           src
                         , out
                         , { filter: function(name) {
