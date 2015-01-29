@@ -6,13 +6,13 @@ Kopeer
 Usage
 =====
 
-###kopeer(source, destination, options)
+### kopeer(source, destination, options)
 
 > Infer the type of op by looking at the source file or folder and perform
 > `kopeer.directory(..)` if source is folder and `kopeer.file(..)` if source is
 > a file.
 
-####Available options:
+#### Available options:
 Same as `kopeer.directory` and `kopeer.file`.
 
 ```javascript
@@ -24,7 +24,7 @@ kopeer("/files", "/backup")
 
 ---
 
-###kopeer.file(soure, destination, options)
+### kopeer.file(soure, destination, options)
 
 > Copy a file from `source` to `destination`
 
@@ -44,11 +44,11 @@ kopeer.file("/files/foo", "/backup/bar")
 
 ---
 
-###kopeer.directory(source, destination, options)
+### kopeer.directory(source, destination, options)
 
 > Copy a folder, recursively
 
-####Available options:
+#### Available options:
 
 * `filter :: Filepath -> Bool (default: noop)`- Given the target path, decide
   whether to include this file.
