@@ -40,8 +40,8 @@ describe('kopeer', function () {
                     kopeer.copyFolder(
                           src
                         , out
-                        , { filter: function(name) {
-                            return _.last(name) != 'a'
+                        , { filter: function(relpath) {
+                            return _.last(relpath) != 'a'
                           } }
                     ).then(function() { done(); });
                 });
@@ -56,7 +56,7 @@ describe('kopeer', function () {
                                 ? filtered(file)
                                 : _.last(filename) == 'a' ? undefined : file
                         }), function(v) { return v === undefined; });
-                    }
+                    };
 
                     readDirFiles(out, 'utf8', function (outErr, outFiles) {
                         assert.ifError(outErr);
@@ -66,5 +66,45 @@ describe('kopeer', function () {
                 });
             });
         });
+
+        describe('when writing over existing files', function () {
+            it('the copy is completed successfully', function (done) {
+
+                kopeer.copyFolder(src, out, { clobber: false })
+                    .then(function() {
+                        return kopeer.copyFolder(src, out, { clobber: false })
+                            .catch(function(e) {
+                                throw e;
+                            })
+                            .finally(function() {
+                                done();
+                            })
+                        ;
+                    })
+                ;
+            });
+        });
+
+        describe('when using rename', function() {
+            it('output files are correctly redirected', function(done) {
+                kopeer.copyFolder(src, out, {
+                    rename: function(relpath) {
+                        return path.basename(relpath) === 'a'
+                            ? path.resolve(path.dirname(relpath), 'z')
+                            : relpath
+                    }
+                }).then(function() {
+                    readDirFiles(src, 'utf8', function (srcErr, srcFiles) {
+                        readDirFiles(out, 'utf8', function (outErr, outFiles) {
+                            assert.ifError(srcErr);
+                            assert.deepEqual(srcFiles.a, outFiles.z);
+                            done();
+                        });
+                    });
+                });
+            });
+        });
+
     });
+
 });
