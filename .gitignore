@@ -1,0 +1,5 @@
+*.sw[opq]
+**/*.sw[opq]
+test/regular-fixtures/out
+**/npm-debug.log
+node_modules
