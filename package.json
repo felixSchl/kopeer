@@ -16,7 +16,7 @@
   "keywords": [
     "copy"
   ],
-  "author": "Felix Schlitter <felixschlitter@gmai.com>",
+  "author": "Felix Schlitter <felixschlitter@gmail.com>",
   "license": "MIT",
   "devDependencies": {
     "mocha": "^2.1.0",
