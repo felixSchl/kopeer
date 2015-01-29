@@ -8,21 +8,43 @@ var assert       = require('assert')
 ;
 
 describe('kopeer', function () {
+
     describe('regular files and directories', function () {
         var fixtures = path.join(__dirname, 'regular-fixtures')
           , src = path.join(fixtures, 'src')
           , out = path.join(fixtures, 'out')
         ;
 
-        before(function (done) {
-            rimraf(out, function() {
-                kopeer.copyFolder(src, out)
-                    .catch(function(e) { done(e); throw e; })
-                    .then(function()   { done();  });
+        before(function (done) { rimraf(out, done); });
+
+        describe('when copying a single file', function() {
+
+            it('file is copied correctly', function(done) {
+                kopeer.file(path.resolve(src, 'a'), path.resolve(out, 'a'))
+                    .then(function() {
+                        readDirFiles(src, 'utf8', true, function (srcErr, srcFiles) {
+                            readDirFiles(out, 'utf8', true, function (outErr, outFiles) {
+                                assert.ifError(srcErr);
+                                assert.deepEqual(_.pick(srcFiles, 'a'), outFiles);
+                                done();
+                            });
+                        });
+                    })
+                    .catch(function(e) { done(e); })
             });
         });
 
         describe('when copying a directory of files', function () {
+
+            before(function (done) {
+                rimraf(out, function() {
+                    kopeer.directory(src, out)
+                        .then(function()   { done();  })
+                        .catch(function(e) { done(e); })
+                    ;
+                });
+            });
+
             it('files are copied correctly', function (done) {
                 readDirFiles(src, 'utf8', true, function (srcErr, srcFiles) {
                     readDirFiles(out, 'utf8', true, function (outErr, outFiles) {
@@ -35,9 +57,10 @@ describe('kopeer', function () {
         });
 
         describe('when copying files using filter', function () {
+
             before(function (done) {
                 rimraf(out, function () {
-                    kopeer.copyFolder(
+                    kopeer.directory(
                           src
                         , out
                         , { filter: function(relpath) {
@@ -72,25 +95,21 @@ describe('kopeer', function () {
         describe('when writing over existing files', function () {
             it('the copy is completed successfully', function (done) {
 
-                kopeer.copyFolder(src, out, { clobber: false })
-                    .catch(function(e) { done(e); throw e; })
+                kopeer.directory(src, out, { clobber: false })
                     .then(function() {
-                        return kopeer.copyFolder(src, out, { clobber: false })
-                            .catch(function(e) {
-                                throw e;
-                            })
-                            .finally(function() {
-                                done();
-                            })
+                        return kopeer.directory(src, out, { clobber: false })
+                            .then(function()   { done(); })
+                            .catch(function(e) { done(e); })
                         ;
                     })
+                    .catch(function(e) { done(e); })
                 ;
             });
         });
 
         describe('when using rename', function() {
             it('output files are correctly redirected', function(done) {
-                kopeer.copyFolder(src, out, {
+                kopeer.directory(src, out, {
                     rename: function(relpath) {
                         return path.basename(relpath) === 'a'
                             ? path.resolve(path.dirname(relpath), 'z')
@@ -122,7 +141,7 @@ describe('kopeer', function () {
         });
 
         it('copies symlinks by default', function (done) {
-            kopeer.copyFolder(src, out)
+            kopeer.directory(src, out)
                 .catch(function(e) { done(e); throw e; })
                 .then(function() {
                     assert.equal(fs.readlinkSync(path.join(out, 'file-symlink')), 'foo');
@@ -133,7 +152,7 @@ describe('kopeer', function () {
         });
 
         it('copies file contents when dereference=true', function (done) {
-            kopeer.copyFolder(src, out, { dereference: true })
+            kopeer.directory(src, out, { dereference: true })
                 .catch(function(e) { done(e); throw e; })
                 .then(function() {
                     var fileSymlinkPath = path.join(out, 'file-symlink');
@@ -158,7 +177,7 @@ describe('kopeer', function () {
         beforeEach(function (done) { rimraf(out, done); });
 
         it('copies broken symlinks by default', function (done) {
-            kopeer.copyFolder(src, out)
+            kopeer.directory(src, out)
                 .catch(function(e) { done(e); throw e; })
                 .then(function() {
                     assert.equal(fs.readlinkSync(
@@ -172,7 +191,7 @@ describe('kopeer', function () {
 
         it('returns an error when dereference=true', function (done) {
             var error = null;
-            kopeer.copyFolder(src, out, { dereference: true })
+            kopeer.directory(src, out, { dereference: true })
                 .catch(function(e) { error = e; })
                 .then(function() {
                     assert.notEqual(error, null);
