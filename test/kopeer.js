@@ -131,6 +131,22 @@ describe('kopeer', function () {
                 })
             ;
         });
+
+        it('copies file contents when dereference=true', function (done) {
+            kopeer.copyFolder(src, out, { dereference: true })
+                .catch(function(e) { done(e); throw e; })
+                .then(function() {
+                    var fileSymlinkPath = path.join(out, 'file-symlink');
+                    assert.ok(fs.lstatSync(fileSymlinkPath).isFile());
+                    assert.equal(fs.readFileSync(fileSymlinkPath), 'foo contents');
+
+                    var dirSymlinkPath = path.join(out, 'dir-symlink');
+                    assert.ok(fs.lstatSync(dirSymlinkPath).isDirectory());
+                    assert.deepEqual(fs.readdirSync(dirSymlinkPath), ['bar']);
+
+                    done();
+            });
+        });
     });
 
 });
