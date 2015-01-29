@@ -149,4 +149,37 @@ describe('kopeer', function () {
         });
     });
 
+    describe('broken symlink handling', function () {
+        var fixtures = path.join(__dirname, 'broken-symlink-fixtures')
+            , src      = path.join(fixtures, 'src')
+            , out      = path.join(fixtures, 'out')
+        ;
+
+        beforeEach(function (done) { rimraf(out, done); });
+
+        it('copies broken symlinks by default', function (done) {
+            kopeer.copyFolder(src, out)
+                .catch(function(e) { done(e); throw e; })
+                .then(function() {
+                    assert.equal(fs.readlinkSync(
+                          path.join(out, 'broken-symlink'))
+                        , 'does-not-exist'
+                    );
+                    done();
+                })
+            ;
+        });
+
+        it('returns an error when dereference=true', function (done) {
+            var error = null;
+            kopeer.copyFolder(src, out, { dereference: true })
+                .catch(function(e) { error = e; })
+                .then(function() {
+                    assert.notEqual(error, null);
+                    assert.equal(error.code, 'ENOENT');
+                    done();
+                });
+        });
+    });
+
 });
