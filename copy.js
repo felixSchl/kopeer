@@ -38,7 +38,7 @@ function walkDirectory_(top, dir, filter) {
             )
         })
         .map(function(filepath) {
-            return fs.statAsync(filepath)
+            return fs.lstatAsync(filepath)
                 .then(function(stats) {
                     return Promise.resolve({
                           filepath: filepath
