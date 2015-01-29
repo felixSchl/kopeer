@@ -147,8 +147,7 @@ function copyFolder(directory, destination, filter) {
                   mappings
                 , 1
                 , function(unit) {
-
-                    fs.readFileAsync(unit.sourceEntry.filepath)
+                    return fs.readFileAsync(unit.sourceEntry.filepath)
                         .then(function(contents) {
                             return fs.writeFileAsync(unit.targetPath)
                                 .then(function() {
