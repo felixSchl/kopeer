@@ -16,9 +16,9 @@ describe('kopeer', function () {
 
         before(function (done) {
             rimraf(out, function() {
-                kopeer.copyFolder(src, out).then(function() {
-                    done();
-                });
+                kopeer.copyFolder(src, out)
+                    .catch(function(e) { done(e); })
+                    .then(function()   { done();  });
             });
         });
 
@@ -43,7 +43,9 @@ describe('kopeer', function () {
                         , { filter: function(relpath) {
                             return _.last(relpath) != 'a'
                           } }
-                    ).then(function() { done(); });
+                    )
+                    .catch(function(e) { done(e); })
+                    .then(function()   { done();  });
                 });
             });
 
@@ -71,6 +73,7 @@ describe('kopeer', function () {
             it('the copy is completed successfully', function (done) {
 
                 kopeer.copyFolder(src, out, { clobber: false })
+                    .catch(function(e) { done(e); })
                     .then(function() {
                         return kopeer.copyFolder(src, out, { clobber: false })
                             .catch(function(e) {
@@ -93,7 +96,9 @@ describe('kopeer', function () {
                             ? path.resolve(path.dirname(relpath), 'z')
                             : relpath
                     }
-                }).then(function() {
+                })
+                .catch(function(e) { done(e); })
+                .then(function() {
                     readDirFiles(src, 'utf8', function (srcErr, srcFiles) {
                         readDirFiles(out, 'utf8', function (outErr, outFiles) {
                             assert.ifError(srcErr);
@@ -104,7 +109,28 @@ describe('kopeer', function () {
                 });
             });
         });
+    });
 
+    describe('symlink handling', function () {
+        var fixtures = path.join(__dirname, 'symlink-fixtures')
+          , src      = path.join(fixtures, 'src')
+          , out      = path.join(fixtures, 'out')
+        ;
+
+        beforeEach(function (done) {
+            rimraf(out, done);
+        });
+
+        it('copies symlinks by default', function (done) {
+            kopeer.copyFolder(src, out)
+                .catch(function(e) { done(e); })
+                .then(function() {
+                    assert.equal(fs.readlinkSync(path.join(out, 'file-symlink')), 'foo');
+                    assert.equal(fs.readlinkSync(path.join(out, 'dir-symlink')), 'dir');
+                    done();
+                })
+            ;
+        });
     });
 
 });
