@@ -83,7 +83,6 @@ function copyFolder(directory, destination, filter) {
         // Resolve target paths
         // --------------------
         .map(function(entry) {
-            console.log("Resolving path names...");
             return Promise.resolve({
                   sourceEntry: entry
                 , targetPath:  path.resolve(
