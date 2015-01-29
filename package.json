@@ -1,0 +1,30 @@
+{
+  "name": "copyright",
+  "version": "0.0.1",
+  "description": "Copy files and folders",
+  "main": "./lib/copyright.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "mocha -R spec"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git@bitbucket.org:felixschl/copyright"
+  },
+  "keywords": [
+    "copy"
+  ],
+  "author": "Felix Schlitter <felixschlitter@gmai.com>",
+  "license": "MIT",
+  "devDependencies": {
+    "mocha": "^2.1.0",
+    "read-dir-files": "0.0.x",
+    "rimraf": "^2.2.8"
+  },
+  "dependencies": {
+    "bluebird": "^2.9.3",
+    "lodash": "^3.0.0"
+  }
+}
