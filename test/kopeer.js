@@ -17,7 +17,7 @@ describe('kopeer', function () {
         before(function (done) {
             rimraf(out, function() {
                 kopeer.copyFolder(src, out)
-                    .catch(function(e) { done(e); })
+                    .catch(function(e) { done(e); throw e; })
                     .then(function()   { done();  });
             });
         });
@@ -44,7 +44,7 @@ describe('kopeer', function () {
                             return _.last(relpath) != 'a'
                           } }
                     )
-                    .catch(function(e) { done(e); })
+                    .catch(function(e) { done(e); throw e; })
                     .then(function()   { done();  });
                 });
             });
@@ -73,7 +73,7 @@ describe('kopeer', function () {
             it('the copy is completed successfully', function (done) {
 
                 kopeer.copyFolder(src, out, { clobber: false })
-                    .catch(function(e) { done(e); })
+                    .catch(function(e) { done(e); throw e; })
                     .then(function() {
                         return kopeer.copyFolder(src, out, { clobber: false })
                             .catch(function(e) {
@@ -97,7 +97,7 @@ describe('kopeer', function () {
                             : relpath
                     }
                 })
-                .catch(function(e) { done(e); })
+                .catch(function(e) { done(e); throw e; })
                 .then(function() {
                     readDirFiles(src, 'utf8', function (srcErr, srcFiles) {
                         readDirFiles(out, 'utf8', function (outErr, outFiles) {
@@ -123,7 +123,7 @@ describe('kopeer', function () {
 
         it('copies symlinks by default', function (done) {
             kopeer.copyFolder(src, out)
-                .catch(function(e) { done(e); })
+                .catch(function(e) { done(e); throw e; })
                 .then(function() {
                     assert.equal(fs.readlinkSync(path.join(out, 'file-symlink')), 'foo');
                     assert.equal(fs.readlinkSync(path.join(out, 'dir-symlink')), 'dir');
