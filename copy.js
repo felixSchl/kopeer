@@ -95,7 +95,7 @@ function copyFolder(directory, destination, filter) {
         // Create the directories
         // ----------------------
         .then(function(mappings) {
-            console.log("Creating directories");
+            console.log("Creating directories...");
             return mapChunked(
                   _.unique(
                     [destination].concat(
