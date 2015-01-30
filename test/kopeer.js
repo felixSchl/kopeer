@@ -152,18 +152,17 @@ describe('kopeer', function () {
 
         it('copies symlinks by default', function (done) {
             kopeer.directory(src, out)
-                .catch(function(e) { done(e); throw e; })
                 .then(function() {
                     assert.equal(fs.readlinkSync(path.join(out, 'file-symlink')), 'foo');
                     assert.equal(fs.readlinkSync(path.join(out, 'dir-symlink')), 'dir');
                     done();
                 })
+                .catch(function(e) { done(e); })
             ;
         });
 
         it('copies file contents when dereference=true', function (done) {
             kopeer.directory(src, out, { dereference: true })
-                .catch(function(e) { done(e); throw e; })
                 .then(function() {
                     var fileSymlinkPath = path.join(out, 'file-symlink');
                     assert.ok(fs.lstatSync(fileSymlinkPath).isFile());
@@ -174,7 +173,9 @@ describe('kopeer', function () {
                     assert.deepEqual(fs.readdirSync(dirSymlinkPath), ['bar']);
 
                     done();
-            });
+                })
+                .catch(function(e) { done(e); })
+            ;
         });
     });
 
@@ -188,7 +189,6 @@ describe('kopeer', function () {
 
         it('copies broken symlinks by default', function (done) {
             kopeer.directory(src, out)
-                .catch(function(e) { done(e); throw e; })
                 .then(function() {
                     assert.equal(fs.readlinkSync(
                           path.join(out, 'broken-symlink'))
@@ -196,6 +196,7 @@ describe('kopeer', function () {
                     );
                     done();
                 })
+                .catch(function(e) { done(e); })
             ;
         });
 
