@@ -33,6 +33,11 @@ kopeer("/files", "/backup")
 * `dereference :: Bool (default: false)` - If true and linked file resolves to
   a directory, copy the directory at the target filepath. Else, write the linked
   file as the target file.
+* `limit :: Int (default: 512)` - The limit of concurrently opened files.
+  A higher limit is faster but risks `EMFILE` errors, while a lower limit is
+  slower but safer. Only applies if `dereference === true` and the location
+  pointed to by `source` turns out to be directory. Note that the directory
+  pointed to will also be fully dereferenced.
 
 
 ```javascript

@@ -140,6 +140,16 @@ describe('kopeer', function () {
             rimraf(out, done);
         });
 
+        it('copies the directory pointed to by link', function(done) {
+            kopeer.file(path.resolve(src, 'dir-symlink'), out, { dereference: true })
+                .then(function() {
+                    assert.deepEqual(fs.readdirSync(path.resolve(out)), ['dir-symlink']);
+                    assert.deepEqual(fs.readdirSync(path.resolve(out, 'dir-symlink')), ['bar']);
+                    done();
+                })
+                .catch(function(e) { done(e); })
+        });
+
         it('copies symlinks by default', function (done) {
             kopeer.directory(src, out)
                 .catch(function(e) { done(e); throw e; })
