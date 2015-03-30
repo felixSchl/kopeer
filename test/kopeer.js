@@ -5,6 +5,7 @@ var assert       = require('assert')
   , _            = require('lodash')
   , readDirFiles = require('read-dir-files')
   , kopeer       = require('../lib/kopeer.js')
+  , Promise      = require('bluebird')
 ;
 
 describe('kopeer', function () {
@@ -213,3 +214,25 @@ describe('kopeer', function () {
     });
 
 });
+
+
+describe('utilities', function () {
+
+    it('map.chunked processes all items', function (done) {
+        var i = 0;
+        (require('../lib/map').chunked)(
+              _.range(100)
+            , 3
+            , function(n) {
+                assert.equal(i, n);
+                i++;
+                return Promise.resolve();
+            }
+        ).then(function() {
+            assert.equal(i, 100);
+            done();
+        });
+    });
+
+});
+
