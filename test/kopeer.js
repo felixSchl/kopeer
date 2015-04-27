@@ -38,7 +38,7 @@ describe('kopeer', function () {
 
             });
 
-            describe.only('to a path that signifies a directory', function() {
+            describe('to a path that signifies a directory', function() {
 
                 it('file is copied correctly', function(done) {
                     kopeer.file(path.resolve(src, 'a'), path.join(out, 'dir/'))
