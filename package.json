@@ -1,6 +1,6 @@
 {
   "name": "kopeer",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Copy files and folders without fuss",
   "main": "./lib/kopeer.js",
   "directories": {

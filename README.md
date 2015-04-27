@@ -48,6 +48,15 @@ kopeer.file("/files/foo", "/backup/bar")
     .then(function()   { /* completed successfully */ })
     .catch(function(e) { /* error while copying    */ })
 ;
+
+// As of v0.2.0, you can also omit the filename on
+// the rhs, and give only the directory name. The
+// following will copy the file "/files/foo" to
+// "/backup/foo".
+kopeer.file("/files/foo", "/backup/")
+    .then(function()   { /* completed successfully */ })
+    .catch(function(e) { /* error while copying    */ })
+;
 ```
 
 ---
