@@ -88,11 +88,11 @@ kopeer.directory("/files", "/backup")
 ;
 ```
 
-###### source
+###### source :: String
 
 The path to the directory to copy
 
-###### destination
+###### destination :: String
 
 The path to the directory to copy to.
 
