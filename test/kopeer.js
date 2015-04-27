@@ -20,19 +20,42 @@ describe('kopeer', function () {
 
         describe('when copying a single file', function() {
 
-            it('file is copied correctly', function(done) {
-                kopeer.file(path.resolve(src, 'a'), path.resolve(out, 'a'))
-                    .then(function() {
-                        readDirFiles(src, 'utf8', true, function (srcErr, srcFiles) {
-                            readDirFiles(out, 'utf8', true, function (outErr, outFiles) {
-                                assert.ifError(srcErr);
-                                assert.deepEqual(_.pick(srcFiles, 'a'), outFiles);
-                                done();
+            describe('to a path that signifies a filename', function() {
+
+                it('file is copied correctly', function(done) {
+                    kopeer.file(path.resolve(src, 'a'), path.resolve(out, 'a'))
+                        .then(function() {
+                            readDirFiles(src, 'utf8', true, function (srcErr, srcFiles) {
+                                readDirFiles(out, 'utf8', true, function (outErr, outFiles) {
+                                    assert.ifError(srcErr);
+                                    assert.deepEqual(_.pick(srcFiles, 'a'), outFiles);
+                                    done();
+                                });
                             });
-                        });
-                    })
-                    .catch(function(e) { done(e); })
+                        })
+                        .catch(function(e) { done(e); })
+                });
+
             });
+
+            describe.only('to a path that signifies a directory', function() {
+
+                it('file is copied correctly', function(done) {
+                    kopeer.file(path.resolve(src, 'a'), path.join(out, 'dir/'))
+                        .then(function() {
+                            readDirFiles(src, 'utf8', true, function (srcErr, srcFiles) {
+                                readDirFiles(path.join(out, 'dir/'), 'utf8', true, function (outErr, outFiles) {
+                                    assert.ifError(srcErr);
+                                    assert.deepEqual(_.pick(srcFiles, 'a'), outFiles);
+                                    done();
+                                });
+                            });
+                        })
+                        .catch(function(e) { done(e); })
+                });
+
+            });
+
         });
 
         describe('when copying a directory of files', function () {
