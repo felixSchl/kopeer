@@ -80,6 +80,28 @@ describe('kopeer', function () {
             });
         });
 
+        describe('when copying a directory of files to non-existant folder', function () {
+
+            before(function (done) {
+                rimraf(out, function() {
+                    kopeer.directory(src, path.resolve(out, 'foo/bar/'))
+                        .then(function()   { done();  })
+                        .catch(function(e) { done(e); })
+                    ;
+                });
+            });
+
+            it('files are copied correctly', function (done) {
+                readDirFiles(src, 'utf8', true, function (srcErr, srcFiles) {
+                    readDirFiles(path.resolve(out, 'foo/bar/'), 'utf8', true, function (outErr, outFiles) {
+                        assert.ifError(srcErr);
+                        assert.deepEqual(srcFiles, outFiles);
+                        done();
+                    });
+                });
+            });
+        });
+
         describe('when copying files using filter', function () {
 
             before(function (done) {
