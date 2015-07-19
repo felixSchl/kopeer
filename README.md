@@ -6,6 +6,12 @@ Kopeer
 
 > Lean library to copy files and folders recursively, asynchronously.
 
+### Install
+
+> npm install kopeer
+
+To run the tests, clone the repo, `npm install` and run `npm test`.
+
 ### kopeer(source, destination [, options] [, callback])
 
 > Infer the type of op by looking at the source file or folder and perform
