@@ -258,6 +258,81 @@ describe('kopeer', function () {
         });
     });
 
+    describe('when given a callback parameter', function() {
+
+        var fixtures = path.join(__dirname, 'regular-fixtures')
+          , src = path.join(fixtures, 'src')
+          , out = path.join(fixtures, 'out')
+        ;
+
+        before(function (done) { rimraf(out, done); });
+
+        it('`kopeer.file` receives a callback', function(done) {
+            kopeer.file(
+                path.resolve(src, 'a')
+              , path.resolve(out, 'a')
+              , function(err) {
+                    assert.strictEqual(err, undefined);
+                    done(err);
+                }
+            );
+        });
+
+        it('`kopeer.file` receives a callback with `err` set on failure', function(done) {
+            kopeer.file(
+                path.resolve(src, 'DOESNT_EXIST')
+              , path.resolve(out, 'a')
+              , function(err) {
+                    assert.notStrictEqual(err, undefined);
+                    assert.strictEqual(err.code, 'ENOENT');
+                    done();
+                }
+            );
+        });
+
+        it('`kopeer` receives a callback', function(done) {
+            kopeer(
+                path.resolve(src, 'a')
+              , path.resolve(out, 'a')
+              , function(err) {
+                    assert.strictEqual(err, undefined);
+                    done(err);
+                }
+            );
+        });
+
+        it('`kopeer` receives a callback with `err` set on failure', function(done) {
+            kopeer(
+                path.resolve(src, 'DOESNT_EXIST')
+              , path.resolve(out, 'a')
+              , function(err) {
+                    assert.notStrictEqual(err, undefined);
+                    assert.strictEqual(err.code, 'ENOENT');
+                    done();
+                }
+            );
+        });
+
+        it('`kopeer.directory` receives a callback', function(done) {
+            rimraf(out, function() {
+                kopeer.directory(src, out, function(err) {
+                    assert.strictEqual(err, undefined);
+                    done(err);
+                });
+            });
+        });
+
+
+        it('`kopeer.directory` receives a callback with `err` set on failure', function(done) {
+            rimraf(out, function() {
+                kopeer.directory(src + 'DOESNT_EXIST', out, function(err) {
+                    assert.notStrictEqual(err, undefined);
+                    assert.strictEqual(err.code, 'ENOENT');
+                    done();
+                });
+            });
+        });
+    });
 });
 
 
