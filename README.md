@@ -1,8 +1,8 @@
 Kopeer
 ======
 
-
-[![Build Status](https://travis-ci.org/felixSchl/kopeer.svg?branch=master)](https://travis-ci.org/felixSchl/kopeer)
+[![npm version](https://badge.fury.io/js/kopeer.svg)](http://badge.fury.io/js/kopeer)
+[![build status](https://travis-ci.org/felixSchl/kopeer.svg?branch=master)](https://travis-ci.org/felixSchl/kopeer)
 
 > Lean library to copy files and folders recursively, asynchronously.
 
