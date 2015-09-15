@@ -1,5 +1,6 @@
 *.sw[opq]
 *.un~
+dist/
 **/*.sw[opq]
 test/regular-fixtures/out
 **/npm-debug.log

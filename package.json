@@ -19,6 +19,11 @@
   "author": "Felix Schlitter <felixschlitter@gmail.com>",
   "license": "MIT",
   "devDependencies": {
+    "babel": "^5.8.23",
+    "babel-runtime": "^5.8.24",
+    "gulp": "^3.9.0",
+    "gulp-babel": "^5.2.1",
+    "gulp-sourcemaps": "^1.5.2",
     "mocha": "^2.1.0",
     "read-dir-files": "0.0.x",
     "rimraf": "^2.2.8"

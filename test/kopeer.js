@@ -1,358 +1,270 @@
-var assert       = require('assert')
-  , fs           = require('fs')
-  , path         = require('path')
-  , rimraf       = require('rimraf')
-  , _            = require('lodash')
-  , readDirFiles = require('read-dir-files')
-  , kopeer       = require('../lib/kopeer.js')
-  , Promise      = require('bluebird')
-;
+import assert from 'assert';
+import fs from 'fs';
+import path from 'path';
+import rimraf from 'rimraf';
+import _ from 'lodash';
+import readDirFiles from 'read-dir-files';
+import kopeer from '..';
+import Bluebird from 'bluebird';
 
-describe('kopeer', function () {
+const rimrafAsync = Bluebird.promisify(rimraf);
+const readDirFilesAsync = Bluebird.promisify(readDirFiles);
 
-    describe('regular files and directories', function () {
-        var fixtures = path.join(__dirname, 'regular-fixtures')
-          , src = path.join(fixtures, 'src')
-          , out = path.join(fixtures, 'out')
-        ;
+describe('kopeer', () => {
 
-        before(function (done) { rimraf(out, done); });
+  describe('regular files and directories', () => {
+    const fixtures = path.join(__dirname, 'regular-fixtures')
+        , src = path.join(fixtures, 'src')
+        , out = path.join(fixtures, 'out');
 
-        describe('when copying a single file', function() {
+    before(() => {
+      return rimrafAsync(out);
+    });
 
-            describe('to a path that signifies a filename', function() {
+    describe('when copying a single file', () => {
+      describe('to a path that signifies a filename',() => {
+        it('file is copied correctly', Bluebird.coroutine(function*() {
+          yield kopeer.file(path.resolve(src, 'a'), path.resolve(out, 'a'));
+          const srcFiles = yield readDirFilesAsync(src, 'utf8', true)
+              , outFiles = yield readDirFilesAsync(out, 'utf8', true);
+          assert.deepEqual(_.pick(srcFiles, 'a'), outFiles);
+        }));
+      });
 
-                it('file is copied correctly', function(done) {
-                    kopeer.file(path.resolve(src, 'a'), path.resolve(out, 'a'))
-                        .then(function() {
-                            readDirFiles(src, 'utf8', true, function (srcErr, srcFiles) {
-                                readDirFiles(out, 'utf8', true, function (outErr, outFiles) {
-                                    assert.ifError(srcErr);
-                                    assert.deepEqual(_.pick(srcFiles, 'a'), outFiles);
-                                    done();
-                                });
-                            });
-                        })
-                        .catch(function(e) { done(e); })
-                });
+      describe('to a path that signifies a directory', function() {
+        it('file is copied correctly', Bluebird.coroutine(function*() {
+          const target = path.join(out, 'dir/');
+          yield kopeer.file(path.resolve(src, 'a'), target);
+          const srcFiles = yield readDirFilesAsync(src, 'utf8', true)
+              , outFiles = yield readDirFilesAsync(target, 'utf8', true);
+          assert.deepEqual(_.pick(srcFiles, 'a'), outFiles);
+        }));
+      });
+    });
 
-            });
+    describe('when copying a directory of files', () => {
+      before(Bluebird.coroutine(function*() {
+        yield rimrafAsync(out);
+        yield kopeer.directory(src, out);
+      }));
 
-            describe('to a path that signifies a directory', function() {
+      it('files are copied correctly', Bluebird.coroutine(function*() {
+        const srcFiles = yield readDirFilesAsync(src, 'utf8', true)
+            , outFiles = yield readDirFilesAsync(out, 'utf8', true);
+        assert.deepEqual(srcFiles, outFiles);
+      }))
+    });
 
-                it('file is copied correctly', function(done) {
-                    kopeer.file(path.resolve(src, 'a'), path.join(out, 'dir/'))
-                        .then(function() {
-                            readDirFiles(src, 'utf8', true, function (srcErr, srcFiles) {
-                                readDirFiles(path.join(out, 'dir/'), 'utf8', true, function (outErr, outFiles) {
-                                    assert.ifError(srcErr);
-                                    assert.deepEqual(_.pick(srcFiles, 'a'), outFiles);
-                                    done();
-                                });
-                            });
-                        })
-                        .catch(function(e) { done(e); })
-                });
+    describe('when copying a directory of files to non-existant folder', () => {
 
-            });
+      const target = path.resolve(out, 'foo/bar/');
 
+      before(Bluebird.coroutine(function*() {
+        yield rimrafAsync(out);
+        yield  kopeer.directory(src, target);
+      }));
+
+      it('files are copied correctly', Bluebird.coroutine(function*() {
+        const srcFiles = yield readDirFilesAsync(src, 'utf8', true)
+            , outFiles = yield readDirFilesAsync(target, 'utf8', true);
+        assert.deepEqual(srcFiles, outFiles);
+      }));
+    });
+
+    describe('when copying files using filter', () => {
+      before(Bluebird.coroutine(function*() {
+        yield rimrafAsync(out);
+        yield kopeer.directory(
+          src
+        , out
+        , { filter: relpath => _.last(relpath) != 'a' });
+      }));
+
+      it('files are copied correctly', Bluebird.coroutine(function*() {
+          const srcFiles = yield readDirFilesAsync(src, 'utf8', true)
+              , outFiles = yield readDirFilesAsync(out, 'utf8', true)
+              , filtered = xs =>
+                  _.omit(_.mapValues(xs, (file, filename) =>
+                    file instanceof Object
+                      ? filtered(file)
+                      : _.last(filename) == 'a' ? undefined : file)
+                  , v => v === undefined);
+          assert.deepEqual(filtered(srcFiles), outFiles);
+      }));
+    });
+
+    describe('when writing over existing files', () => {
+      it('the copy is completed successfully', Bluebird.coroutine(function*() {
+        yield kopeer.directory(src, out, { clobber: false })
+        yield kopeer.directory(src, out, { clobber: false })
+      }));
+    });
+
+    describe('when using rename', () => {
+      it('output files are correctly redirected', Bluebird.coroutine(function*() {
+        yield kopeer.directory(src, out, {
+          rename: relpath =>
+            path.basename(relpath) === 'a'
+              ? path.resolve(path.dirname(relpath), 'z')
+              : relpath
         });
+        const srcFiles = yield readDirFilesAsync(src, 'utf8', true)
+            , outFiles = yield readDirFilesAsync(out, 'utf8', true);
+        assert.deepEqual(srcFiles.a, outFiles.z);
+      }));
+    });
+  });
 
-        describe('when copying a directory of files', function () {
+  describe('symlink handling', function () {
+    const fixtures = path.join(__dirname, 'symlink-fixtures')
+        , src = path.join(fixtures, 'src')
+        , out = path.join(fixtures, 'out')
 
-            before(function (done) {
-                rimraf(out, function() {
-                    kopeer.directory(src, out)
-                        .then(function()   { done();  })
-                        .catch(function(e) { done(e); })
-                    ;
-                });
-            });
+    beforeEach(Bluebird.coroutine(function*() {
+      yield rimrafAsync(out);
+    }));
 
-            it('files are copied correctly', function (done) {
-                readDirFiles(src, 'utf8', true, function (srcErr, srcFiles) {
-                    readDirFiles(out, 'utf8', true, function (outErr, outFiles) {
-                        assert.ifError(srcErr);
-                        assert.deepEqual(srcFiles, outFiles);
-                        done();
-                    });
-                });
-            });
-        });
+    it('copies the directory pointed to by link', Bluebird.coroutine(function*() {
+      yield kopeer.file(
+        path.resolve(src, 'dir-symlink')
+      , out
+      , { dereference: true });
 
-        describe('when copying a directory of files to non-existant folder', function () {
+      assert.deepEqual(
+        fs.readdirSync(path.resolve(out))
+      , ['dir-symlink']);
 
-            before(function (done) {
-                rimraf(out, function() {
-                    kopeer.directory(src, path.resolve(out, 'foo/bar/'))
-                        .then(function()   { done();  })
-                        .catch(function(e) { done(e); })
-                    ;
-                });
-            });
+      assert.deepEqual(
+        fs.readdirSync(path.resolve(out, 'dir-symlink'))
+      , ['bar']);
+    }));
 
-            it('files are copied correctly', function (done) {
-                readDirFiles(src, 'utf8', true, function (srcErr, srcFiles) {
-                    readDirFiles(path.resolve(out, 'foo/bar/'), 'utf8', true, function (outErr, outFiles) {
-                        assert.ifError(srcErr);
-                        assert.deepEqual(srcFiles, outFiles);
-                        done();
-                    });
-                });
-            });
-        });
+    it('copies symlinks by default', Bluebird.coroutine(function*() {
+      yield kopeer.directory(src, out)
+      assert.equal(fs.readlinkSync(path.join(out, 'file-symlink')), 'foo');
+      assert.equal(fs.readlinkSync(path.join(out, 'dir-symlink')), 'dir');
+    }));
 
-        describe('when copying files using filter', function () {
+    it('copies file contents when dereference=true'
+    , Bluebird.coroutine(function*() {
+      yield kopeer.directory(src, out, { dereference: true });
 
-            before(function (done) {
-                rimraf(out, function () {
-                    kopeer.directory(
-                          src
-                        , out
-                        , { filter: function(relpath) {
-                            return _.last(relpath) != 'a'
-                          } }
-                    )
-                    .catch(function(e) { done(e); throw e; })
-                    .then(function()   { done();  });
-                });
-            });
+      const fileSymlinkPath = path.join(out, 'file-symlink')
+          , dirSymlinkPath = path.join(out, 'dir-symlink');
 
-            it('files are copied correctly', function (done) {
-                readDirFiles(src, 'utf8', true, function (srcErr, srcFiles) {
+      assert.ok(fs.lstatSync(fileSymlinkPath).isFile());
+      assert.equal(fs.readFileSync(fileSymlinkPath), 'foo contents');
+      assert.ok(fs.lstatSync(dirSymlinkPath).isDirectory());
+      assert.deepEqual(fs.readdirSync(dirSymlinkPath), ['bar']);
+    }));
+  });
 
-                    var filtered = function(xs) {
-                        return _.omit(_.mapValues(xs, function(file, filename) {
-                            return file instanceof Object
-                                ? filtered(file)
-                                : _.last(filename) == 'a' ? undefined : file
-                        }), function(v) { return v === undefined; });
-                    };
+  describe('broken symlink handling', function () {
+    const fixtures = path.join(__dirname, 'broken-symlink-fixtures')
+        , src = path.join(fixtures, 'src')
+        , out = path.join(fixtures, 'out');
 
-                    readDirFiles(out, 'utf8', function (outErr, outFiles) {
-                        assert.ifError(outErr);
-                        assert.deepEqual(filtered(srcFiles), outFiles);
-                        done();
-                    });
-                });
-            });
-        });
+    beforeEach(Bluebird.coroutine(function*() {
+      yield rimrafAsync(out);
+    }));
 
-        describe('when writing over existing files', function () {
-            it('the copy is completed successfully', function (done) {
+    it('copies broken symlinks by default', Bluebird.coroutine(function*() {
+      yield kopeer.directory(src, out);
+      assert.equal(fs.readlinkSync(
+        path.join(out, 'broken-symlink'))
+      , 'does-not-exist');
+    }));
 
-                kopeer.directory(src, out, { clobber: false })
-                    .then(function() {
-                        return kopeer.directory(src, out, { clobber: false })
-                            .then(function()   { done(); })
-                            .catch(function(e) { done(e); })
-                        ;
-                    })
-                    .catch(function(e) { done(e); })
-                ;
-            });
-        });
+    it('returns an error when dereference=true'
+    , Bluebird.coroutine(function*() {
+      try {
+        yield kopeer.directory(src, out, { dereference: true })
+        assert.false();
+      } catch(e) {
+        assert.equal(e.code, 'ENOENT');
+      }
+    }));
+  });
 
-        describe('when using rename', function() {
-            it('output files are correctly redirected', function(done) {
-                kopeer.directory(src, out, {
-                    rename: function(relpath) {
-                        return path.basename(relpath) === 'a'
-                            ? path.resolve(path.dirname(relpath), 'z')
-                            : relpath
-                    }
-                })
-                .catch(function(e) { done(e); throw e; })
-                .then(function() {
-                    readDirFiles(src, 'utf8', function (srcErr, srcFiles) {
-                        readDirFiles(out, 'utf8', function (outErr, outFiles) {
-                            assert.ifError(srcErr);
-                            assert.deepEqual(srcFiles.a, outFiles.z);
-                            done();
-                        });
-                    });
-                });
-            });
+  describe('when given a callback parameter', function() {
+    const fixtures = path.join(__dirname, 'regular-fixtures')
+        , src = path.join(fixtures, 'src')
+        , out = path.join(fixtures, 'out');
+
+    beforeEach(Bluebird.coroutine(function*() {
+      yield rimrafAsync(out);
+    }));
+
+    it('`kopeer.file` receives a callback', function(done) {
+      kopeer.file(
+        path.resolve(src, 'a')
+      , path.resolve(out, 'a')
+      , function(err) {
+          assert.strictEqual(err, undefined);
+          done(err);
+        }
+      );
+    });
+
+    it('`kopeer.file` receives a callback with `err` set on failure', function(done) {
+      kopeer.file(
+        path.resolve(src, 'DOESNT_EXIST')
+      , path.resolve(out, 'a')
+      , function(err) {
+          assert.notStrictEqual(err, undefined);
+          assert.strictEqual(err.code, 'ENOENT');
+          done();
+        }
+      );
+    });
+
+    it('`kopeer` receives a callback', function(done) {
+      kopeer(
+        path.resolve(src, 'a')
+      , path.resolve(out, 'a')
+      , function(err) {
+          assert.strictEqual(err, undefined);
+          done(err);
         });
     });
 
-    describe('symlink handling', function () {
-        var fixtures = path.join(__dirname, 'symlink-fixtures')
-          , src      = path.join(fixtures, 'src')
-          , out      = path.join(fixtures, 'out')
-        ;
-
-        beforeEach(function (done) {
-            rimraf(out, done);
-        });
-
-        it('copies the directory pointed to by link', function(done) {
-            kopeer.file(path.resolve(src, 'dir-symlink'), out, { dereference: true })
-                .then(function() {
-                    assert.deepEqual(fs.readdirSync(path.resolve(out)), ['dir-symlink']);
-                    assert.deepEqual(fs.readdirSync(path.resolve(out, 'dir-symlink')), ['bar']);
-                    done();
-                })
-                .catch(function(e) { done(e); })
-        });
-
-        it('copies symlinks by default', function (done) {
-            kopeer.directory(src, out)
-                .then(function() {
-                    assert.equal(fs.readlinkSync(path.join(out, 'file-symlink')), 'foo');
-                    assert.equal(fs.readlinkSync(path.join(out, 'dir-symlink')), 'dir');
-                    done();
-                })
-                .catch(function(e) { done(e); })
-            ;
-        });
-
-        it('copies file contents when dereference=true', function (done) {
-            kopeer.directory(src, out, { dereference: true })
-                .then(function() {
-                    var fileSymlinkPath = path.join(out, 'file-symlink');
-                    assert.ok(fs.lstatSync(fileSymlinkPath).isFile());
-                    assert.equal(fs.readFileSync(fileSymlinkPath), 'foo contents');
-
-                    var dirSymlinkPath = path.join(out, 'dir-symlink');
-                    assert.ok(fs.lstatSync(dirSymlinkPath).isDirectory());
-                    assert.deepEqual(fs.readdirSync(dirSymlinkPath), ['bar']);
-
-                    done();
-                })
-                .catch(function(e) { done(e); })
-            ;
+    it('`kopeer` receives a callback with `err` set on failure', function(done) {
+      kopeer(
+        path.resolve(src, 'DOESNT_EXIST')
+      , path.resolve(out, 'a')
+      , function(err) {
+          assert.notStrictEqual(err, undefined);
+          assert.strictEqual(err.code, 'ENOENT');
+          done();
         });
     });
 
-    describe('broken symlink handling', function () {
-        var fixtures = path.join(__dirname, 'broken-symlink-fixtures')
-            , src      = path.join(fixtures, 'src')
-            , out      = path.join(fixtures, 'out')
-        ;
-
-        beforeEach(function (done) { rimraf(out, done); });
-
-        it('copies broken symlinks by default', function (done) {
-            kopeer.directory(src, out)
-                .then(function() {
-                    assert.equal(fs.readlinkSync(
-                          path.join(out, 'broken-symlink'))
-                        , 'does-not-exist'
-                    );
-                    done();
-                })
-                .catch(function(e) { done(e); })
-            ;
-        });
-
-        it('returns an error when dereference=true', function (done) {
-            var error = null;
-            kopeer.directory(src, out, { dereference: true })
-                .catch(function(e) { error = e; })
-                .then(function() {
-                    assert.notEqual(error, null);
-                    assert.equal(error.code, 'ENOENT');
-                    done();
-                });
-        });
+    it('`kopeer.directory` receives a callback', function(done) {
+      kopeer.directory(src, out, function(err) {
+        assert.strictEqual(err, undefined);
+        done(err);
+      });
     });
 
-    describe('when given a callback parameter', function() {
-
-        var fixtures = path.join(__dirname, 'regular-fixtures')
-          , src = path.join(fixtures, 'src')
-          , out = path.join(fixtures, 'out')
-        ;
-
-        before(function (done) { rimraf(out, done); });
-
-        it('`kopeer.file` receives a callback', function(done) {
-            kopeer.file(
-                path.resolve(src, 'a')
-              , path.resolve(out, 'a')
-              , function(err) {
-                    assert.strictEqual(err, undefined);
-                    done(err);
-                }
-            );
-        });
-
-        it('`kopeer.file` receives a callback with `err` set on failure', function(done) {
-            kopeer.file(
-                path.resolve(src, 'DOESNT_EXIST')
-              , path.resolve(out, 'a')
-              , function(err) {
-                    assert.notStrictEqual(err, undefined);
-                    assert.strictEqual(err.code, 'ENOENT');
-                    done();
-                }
-            );
-        });
-
-        it('`kopeer` receives a callback', function(done) {
-            kopeer(
-                path.resolve(src, 'a')
-              , path.resolve(out, 'a')
-              , function(err) {
-                    assert.strictEqual(err, undefined);
-                    done(err);
-                }
-            );
-        });
-
-        it('`kopeer` receives a callback with `err` set on failure', function(done) {
-            kopeer(
-                path.resolve(src, 'DOESNT_EXIST')
-              , path.resolve(out, 'a')
-              , function(err) {
-                    assert.notStrictEqual(err, undefined);
-                    assert.strictEqual(err.code, 'ENOENT');
-                    done();
-                }
-            );
-        });
-
-        it('`kopeer.directory` receives a callback', function(done) {
-            rimraf(out, function() {
-                kopeer.directory(src, out, function(err) {
-                    assert.strictEqual(err, undefined);
-                    done(err);
-                });
-            });
-        });
-
-
-        it('`kopeer.directory` receives a callback with `err` set on failure', function(done) {
-            rimraf(out, function() {
-                kopeer.directory(src + 'DOESNT_EXIST', out, function(err) {
-                    assert.notStrictEqual(err, undefined);
-                    assert.strictEqual(err.code, 'ENOENT');
-                    done();
-                });
-            });
-        });
+    it('`kopeer.directory` receives a callback with `err` set on failure', function(done) {
+      kopeer.directory(src + 'DOESNT_EXIST', out, function(err) {
+        assert.notStrictEqual(err, undefined);
+        assert.strictEqual(err.code, 'ENOENT');
+        done();
+      });
     });
+  });
 });
 
-
 describe('utilities', function () {
-
-    it('map.chunked processes all items', function (done) {
-        var i = 0;
-        (require('../lib/map').chunked)(
-              _.range(100)
-            , 3
-            , function(n) {
-                assert.equal(i, n);
-                i++;
-                return Promise.resolve();
-            }
-        ).then(function() {
-            assert.equal(i, 100);
-            done();
-        });
+  it('map.chunked processes all items', Bluebird.coroutine(function*() {
+    let i = 0;
+    yield (require('../dist/map').chunked)(_.range(100), 3, n => {
+      assert.equal(i, n);
+      i++;
+      return Bluebird.resolve();
     });
-
+    assert.equal(i, 100);
+  }));
 });
 
