@@ -56,8 +56,6 @@ const copyFile
 
 /**
  * Copy a single symlink.
- * This makes the link "real", i.e. it copies the contents of the file
- * pointed to by symlink `source` to destination `dest`.
  *
  * @param {String} source
  * The absolute path the file in question.
