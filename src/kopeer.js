@@ -12,10 +12,10 @@ const debug = _debug('kopeer');
 Bluebird.promisifyAll(fs);
 
 /**
- * Copy File
+ * Copy a file
  *
  * Copy a file from source location `source` to destination `dest`,
- * given `options`.
+ * given `options`. Any intermediate directories will be created.
  *
  * @param {String} source
  * The absolute path the file in question.
@@ -26,8 +26,7 @@ Bluebird.promisifyAll(fs);
  * @param {Object} options
  * @param {Boolean} options.dereference
  * If true, makes symlinks "real" by following them.
- * If `source` is determined to be a directory, not a file,
- * execute copy the directory instead (@see copyDir)
+ * If `source` is determined to be a directory, not a file, `EISDIR` is thrown.
  */
 const copyFile
 = Bluebird.coroutine(function*(source, dest, options) {
@@ -58,8 +57,28 @@ const copyFile
 });
 
 /**
- * Copy Directory
+ * Copy a directory
  *
+ * Copy a directory from it's source location `source` to destination `dest`,
+ * given `options`. Any intermediate directories will be created.
+ *
+ * @param {String} source
+ * The absolute path the directory in question.
+ *
+ * @param {String} dest
+ * The absolute path the target location.
+ *
+ * @param {Boolean} options.dereference
+ * If true, makes symlinks "real" by following them.
+ * If `source` is determined to be a file, not a directory, `EISFILE` is thrown.
+ *
+ * @param {Function} [options.rename]
+ * Function applied to each new path, relative to it's new root.
+ * Returns a string to alter the path.
+ *
+ * @param {Function} [options.filter]
+ * Predicate function applied to each source path, in order to eliminate paths
+ * early that are not welcome.
  */
 const copyDir
 = Bluebird.coroutine(function*(source, dest, options, callback) {
@@ -72,7 +91,7 @@ const copyDir
       : 'lstatAsync'])(source);
 
   if (!stat.isDirectory()) {
-    yield Bluebird.reject(new Error('ENODIR'));
+    yield Bluebird.reject(new Error('EISFILE'));
   } else {
 
     /*
@@ -86,7 +105,8 @@ const copyDir
     debug('Collecting mappings...');
     const mappings = yield walk.dir(
       source
-    , { filter: options.filter, followLinks: options.dereference })
+    , { filter: options.filter
+      , followLinks: options.dereference })
       .map(entry => (
         { sourceEntry: entry
         , targetPath: options.rename(path.resolve(dest, entry.relpath)) }
@@ -120,6 +140,9 @@ const copyDir
   }
 });
 
+/**
+ * Callback/Defaults wrapper for @see copyFile
+ */
 function _file(source, dest, options, callback) {
   if (_.isFunction(options)) {
     callback = options;
@@ -148,6 +171,9 @@ function _file(source, dest, options, callback) {
   return promise;
 }
 
+/**
+ * Callback/Defaults wrapper for @see copyDir
+ */
 function _directory(directory, destination, options, callback) {
   if (_.isFunction(options)) {
     callback = options;
@@ -173,6 +199,10 @@ function _directory(directory, destination, options, callback) {
   return promise;
 };
 
+/**
+ * Callback/Defaults wrapper for either @see _directory, or @see _file,
+ * if `source` turns out to be a directory or file, respectively.
+ */
 function _kopeer(source, dest, options, callback) {
 
   if (_.isFunction(options)) {
@@ -198,4 +228,3 @@ function _kopeer(source, dest, options, callback) {
 module.exports = _kopeer;
 module.exports.file = _file;
 module.exports.directory = _directory;
-
