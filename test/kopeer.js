@@ -1,4 +1,5 @@
 import assert from 'assert';
+import os from 'os';
 import fs from 'fs';
 import path from 'path';
 import rimraf from 'rimraf';
@@ -9,6 +10,7 @@ import Bluebird from 'bluebird';
 
 const rimrafAsync = Bluebird.promisify(rimraf);
 const readDirFilesAsync = Bluebird.promisify(readDirFiles);
+Bluebird.promisifyAll(fs);
 
 describe('kopeer', () => {
 
@@ -121,7 +123,19 @@ describe('kopeer', () => {
         , out = path.join(fixtures, 'out')
 
     beforeEach(Bluebird.coroutine(function*() {
-      yield rimrafAsync(out);
+      yield Bluebird.all([
+        rimrafAsync(out)
+      , rimrafAsync(path.resolve(src, 'dir-symlink'))
+      , rimrafAsync(path.resolve(src, 'file-symlink'))]);
+      yield Bluebird.all([
+        fs.symlinkAsync(
+          path.resolve(src, 'dir')
+        , path.resolve(src, 'dir-symlink')
+        , 'dir')
+      , fs.symlinkAsync(
+          path.resolve(src, 'foo')
+        , path.resolve(src, 'file-symlink')
+        , 'file')]);
     }));
 
     it('copies the directory pointed to by link', Bluebird.coroutine(function*() {
@@ -137,8 +151,12 @@ describe('kopeer', () => {
 
     it('copies symlinks by default', Bluebird.coroutine(function*() {
       yield kopeer.directory(src, out)
-      assert.equal(fs.readlinkSync(path.join(out, 'file-symlink')), 'foo');
-      assert.equal(fs.readlinkSync(path.join(out, 'dir-symlink')), 'dir');
+      assert.equal(
+        fs.readlinkSync(path.join(out, 'file-symlink'))
+      , path.resolve(src, 'foo'));
+      assert.equal(
+        fs.readlinkSync(path.join(out, 'dir-symlink'))
+      , path.resolve(src, 'dir'));
     }));
 
     it('copies file contents when dereference=true'
@@ -149,38 +167,42 @@ describe('kopeer', () => {
           , dirSymlinkPath = path.join(out, 'dir-symlink');
 
       assert.ok(fs.lstatSync(fileSymlinkPath).isFile());
-      assert.equal(fs.readFileSync(fileSymlinkPath), 'foo contents');
+      assert.equal(
+        fs.readFileSync(fileSymlinkPath).toString('utf8')
+      , 'foo contents');
       assert.ok(fs.lstatSync(dirSymlinkPath).isDirectory());
       assert.deepEqual(fs.readdirSync(dirSymlinkPath), ['bar']);
     }));
   });
 
-  describe('broken symlink handling', function () {
-    const fixtures = path.join(__dirname, 'broken-symlink-fixtures')
-        , src = path.join(fixtures, 'src')
-        , out = path.join(fixtures, 'out');
+  if (os.platform() !== 'win32') {
+    describe('broken symlink handling', function () {
+      const fixtures = path.join(__dirname, 'broken-symlink-fixtures')
+          , src = path.join(fixtures, 'src')
+          , out = path.join(fixtures, 'out');
 
-    beforeEach(Bluebird.coroutine(function*() {
-      yield rimrafAsync(out);
-    }));
+      beforeEach(Bluebird.coroutine(function*() {
+        yield rimrafAsync(out);
+      }));
 
-    it('copies broken symlinks by default', Bluebird.coroutine(function*() {
-      yield kopeer.directory(src, out);
-      assert.equal(fs.readlinkSync(
-        path.join(out, 'broken-symlink'))
-      , 'does-not-exist');
-    }));
+      it('copies broken symlinks by default', Bluebird.coroutine(function*() {
+        yield kopeer.directory(src, out);
+        assert.equal(fs.readlinkSync(
+          path.join(out, 'broken-symlink'))
+        , 'does-not-exist');
+      }));
 
-    it('returns an error when dereference=true'
-    , Bluebird.coroutine(function*() {
-      try {
-        yield kopeer.directory(src, out, { dereference: true })
-        assert.false();
-      } catch(e) {
-        assert.equal(e.code, 'ENOENT');
-      }
-    }));
-  });
+      it('returns an error when dereference=true'
+      , Bluebird.coroutine(function*() {
+        try {
+          yield kopeer.directory(src, out, { dereference: true })
+          assert.false();
+        } catch(e) {
+          assert.equal(e.code, 'ENOENT');
+        }
+      }));
+    });
+  }
 
   describe('when given a callback parameter', function() {
     const fixtures = path.join(__dirname, 'regular-fixtures')
