@@ -10,6 +10,21 @@ Bluebird.promisifyAll(fs);
 
 const modern = /^v0\.1\d\.\d+/.test(process.version);
 
+/**
+ * Copy a single, real file.
+ *
+ * @param {String} source
+ * The absolute path the file in question.
+ *
+ * @param {String} dest
+ * The absolute path the target location of the file.
+ *
+ * @param {stat}
+ * The fs-stats for this file.
+ *
+ * @returns {Promise}
+ * Returns the unit promise.
+ */
 const copyFile
 = Bluebird.coroutine(function*(source, dest, stat) {
 
@@ -39,6 +54,20 @@ const copyFile
   yield fs.utimesAsync(dest, stat.atime, stat.mtime);
 });
 
+/**
+ * Copy a single symlink.
+ * This makes the link "real", i.e. it copies the contents of the file
+ * pointed to by symlink `source` to destination `dest`.
+ *
+ * @param {String} source
+ * The absolute path the file in question.
+ *
+ * @param {String} dest
+ * The absolute path the target location of the file.
+ *
+ * @returns {Promise}
+ * Returns the unit promise.
+ */
 const copyLink
 = Bluebird.coroutine(function*(source, dest) {
   yield fs.symlinkAsync(

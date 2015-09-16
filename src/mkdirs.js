@@ -6,6 +6,17 @@ import _debug from 'debug';
 
 const debug = _debug('kopeer');
 
+/**
+ * Given an absolute path to `directory`, create all
+ * intermediate directories leading up to and including
+ * `directory`, similar to `mkdirs -p`.
+ * 
+ * @param {string} directory
+ * The absolute path of the directory to create.
+ *
+ * @returns {Promise}
+ * Returns the unit promise.
+ */
 export default Bluebird.coroutine(function*(directory) {
   const maxTries = 10;
   yield _.foldl(

@@ -125,17 +125,13 @@ describe('kopeer', () => {
     }));
 
     it('copies the directory pointed to by link', Bluebird.coroutine(function*() {
-      yield kopeer.file(
+      yield kopeer.directory(
         path.resolve(src, 'dir-symlink')
       , out
       , { dereference: true });
 
       assert.deepEqual(
         fs.readdirSync(path.resolve(out))
-      , ['dir-symlink']);
-
-      assert.deepEqual(
-        fs.readdirSync(path.resolve(out, 'dir-symlink'))
       , ['bar']);
     }));
 
