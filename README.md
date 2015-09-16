@@ -10,8 +10,6 @@ Kopeer
 
 > npm install kopeer
 
-To run the tests, clone the repo, `npm install` and run `npm test`.
-
 ### kopeer(source, destination [, options] [, callback])
 
 > Infer the type of op by looking at the source file or folder and perform
@@ -117,3 +115,17 @@ kopeer.directory('/files', '/backup', function(err) { /* ... */ });
       function(err) { /*...*/ }
       ```
 
+### Contributing
+
+Business as usual. Get started by running the test suite:
+
+```
+git clone git@github.com:felixschl/kopeer
+cd kopeer
+npm install -g gulp
+npm install
+gulp
+npm test
+```
+
+Then fix bug / add feature and submit a pull request.
