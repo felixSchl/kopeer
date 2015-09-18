@@ -152,11 +152,6 @@ async function copyDir(source, dest, options) {
   } else {
 
     /*
-     * Create the directories
-     */
-    await mkdirs(path.dirname(dest));
-
-    /*
      * Collect the mappings
      */
     debug('Collecting mappings...');
