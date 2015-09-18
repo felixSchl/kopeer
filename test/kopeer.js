@@ -25,66 +25,66 @@ describe('kopeer', () => {
 
     describe('when copying a single file', () => {
       describe('to a path that signifies a filename',() => {
-        it('file is copied correctly', Bluebird.coroutine(function*() {
-          yield kopeer.file(path.resolve(src, 'a'), path.resolve(out, 'a'));
-          const srcFiles = yield readDirFilesAsync(src, 'utf8', true)
-              , outFiles = yield readDirFilesAsync(out, 'utf8', true);
+        it('file is copied correctly', async function() {
+          await kopeer.file(path.resolve(src, 'a'), path.resolve(out, 'a'));
+          const srcFiles = await readDirFilesAsync(src, 'utf8', true)
+              , outFiles = await readDirFilesAsync(out, 'utf8', true);
           assert.deepEqual(_.pick(srcFiles, 'a'), outFiles);
-        }));
+        });
       });
 
       describe('to a path that signifies a directory', function() {
-        it('file is copied correctly', Bluebird.coroutine(function*() {
+        it('file is copied correctly', async () => {
           const target = path.join(out, 'dir/');
-          yield kopeer.file(path.resolve(src, 'a'), target);
-          const srcFiles = yield readDirFilesAsync(src, 'utf8', true)
-              , outFiles = yield readDirFilesAsync(target, 'utf8', true);
+          await kopeer.file(path.resolve(src, 'a'), target);
+          const srcFiles = await readDirFilesAsync(src, 'utf8', true)
+              , outFiles = await readDirFilesAsync(target, 'utf8', true);
           assert.deepEqual(_.pick(srcFiles, 'a'), outFiles);
-        }));
+        });
       });
     });
 
     describe('when copying a directory of files', () => {
-      before(Bluebird.coroutine(function*() {
-        yield rimrafAsync(out);
-        yield kopeer.directory(src, out);
-      }));
+      before(async () => {
+        await rimrafAsync(out);
+        await kopeer.directory(src, out);
+      });
 
-      it('files are copied correctly', Bluebird.coroutine(function*() {
-        const srcFiles = yield readDirFilesAsync(src, 'utf8', true)
-            , outFiles = yield readDirFilesAsync(out, 'utf8', true);
+      it('files are copied correctly', async () => {
+        const srcFiles = await readDirFilesAsync(src, 'utf8', true)
+            , outFiles = await readDirFilesAsync(out, 'utf8', true);
         assert.deepEqual(srcFiles, outFiles);
-      }))
+      });
     });
 
     describe('when copying a directory of files to non-existant folder', () => {
 
       const target = path.resolve(out, 'foo/bar/');
 
-      before(Bluebird.coroutine(function*() {
-        yield rimrafAsync(out);
-        yield  kopeer.directory(src, target);
-      }));
+      before(async () => {
+        await rimrafAsync(out);
+        await  kopeer.directory(src, target);
+      });
 
-      it('files are copied correctly', Bluebird.coroutine(function*() {
-        const srcFiles = yield readDirFilesAsync(src, 'utf8', true)
-            , outFiles = yield readDirFilesAsync(target, 'utf8', true);
+      it('files are copied correctly', async () => {
+        const srcFiles = await readDirFilesAsync(src, 'utf8', true)
+            , outFiles = await readDirFilesAsync(target, 'utf8', true);
         assert.deepEqual(srcFiles, outFiles);
-      }));
+      });
     });
 
     describe('when copying files using filter', () => {
-      before(Bluebird.coroutine(function*() {
-        yield rimrafAsync(out);
-        yield kopeer.directory(
+      before(async () => {
+        await rimrafAsync(out);
+        await kopeer.directory(
           src
         , out
         , { filter: relpath => _.last(relpath) != 'a' });
-      }));
+      });
 
-      it('files are copied correctly', Bluebird.coroutine(function*() {
-          const srcFiles = yield readDirFilesAsync(src, 'utf8', true)
-              , outFiles = yield readDirFilesAsync(out, 'utf8', true)
+      it('files are copied correctly', async () => {
+          const srcFiles = await readDirFilesAsync(src, 'utf8', true)
+              , outFiles = await readDirFilesAsync(out, 'utf8', true)
               , filtered = xs =>
                   _.omit(_.mapValues(xs, (file, filename) =>
                     file instanceof Object
@@ -92,28 +92,28 @@ describe('kopeer', () => {
                       : _.last(filename) == 'a' ? undefined : file)
                   , v => v === undefined);
           assert.deepEqual(filtered(srcFiles), outFiles);
-      }));
+      });
     });
 
     describe('when writing over existing files', () => {
-      it('the copy is completed successfully', Bluebird.coroutine(function*() {
-        yield kopeer.directory(src, out, { clobber: false })
-        yield kopeer.directory(src, out, { clobber: false })
-      }));
+      it('the copy is completed successfully', async () => {
+        await kopeer.directory(src, out, { clobber: false })
+        await kopeer.directory(src, out, { clobber: false })
+      });
     });
 
     describe('when using rename', () => {
-      it('output files are correctly redirected', Bluebird.coroutine(function*() {
-        yield kopeer.directory(src, out, {
+      it('output files are correctly redirected', async () => {
+        await kopeer.directory(src, out, {
           rename: relpath =>
             path.basename(relpath) === 'a'
               ? path.resolve(path.dirname(relpath), 'z')
               : relpath
         });
-        const srcFiles = yield readDirFilesAsync(src, 'utf8', true)
-            , outFiles = yield readDirFilesAsync(out, 'utf8', true);
+        const srcFiles = await readDirFilesAsync(src, 'utf8', true)
+            , outFiles = await readDirFilesAsync(out, 'utf8', true);
         assert.deepEqual(srcFiles.a, outFiles.z);
-      }));
+      });
     });
   });
 
@@ -122,12 +122,12 @@ describe('kopeer', () => {
         , src = path.join(fixtures, 'src')
         , out = path.join(fixtures, 'out')
 
-    beforeEach(Bluebird.coroutine(function*() {
-      yield Bluebird.all([
+    beforeEach(async () => {
+      await Bluebird.all([
         rimrafAsync(out)
       , rimrafAsync(path.resolve(src, 'dir-symlink'))
       , rimrafAsync(path.resolve(src, 'file-symlink'))]);
-      yield Bluebird.all([
+      await Bluebird.all([
         fs.symlinkAsync(
           path.resolve(src, 'dir')
         , path.resolve(src, 'dir-symlink')
@@ -136,10 +136,10 @@ describe('kopeer', () => {
           path.resolve(src, 'foo')
         , path.resolve(src, 'file-symlink')
         , 'file')]);
-    }));
+    });
 
-    it('copies the directory pointed to by link', Bluebird.coroutine(function*() {
-      yield kopeer.directory(
+    it('copies the directory pointed to by link', async () => {
+      await kopeer.directory(
         path.resolve(src, 'dir-symlink')
       , out
       , { dereference: true });
@@ -147,21 +147,20 @@ describe('kopeer', () => {
       assert.deepEqual(
         fs.readdirSync(path.resolve(out))
       , ['bar']);
-    }));
+    });
 
-    it('copies symlinks by default', Bluebird.coroutine(function*() {
-      yield kopeer.directory(src, out)
+    it('copies symlinks by default', async () => {
+      await kopeer.directory(src, out)
       assert.equal(
         fs.readlinkSync(path.join(out, 'file-symlink'))
       , path.resolve(src, 'foo'));
       assert.equal(
         fs.readlinkSync(path.join(out, 'dir-symlink'))
       , path.resolve(src, 'dir'));
-    }));
+    });
 
-    it('copies file contents when dereference=true'
-    , Bluebird.coroutine(function*() {
-      yield kopeer.directory(src, out, { dereference: true });
+    it('copies file contents when dereference=true', async () => {
+      await kopeer.directory(src, out, { dereference: true });
 
       const fileSymlinkPath = path.join(out, 'file-symlink')
           , dirSymlinkPath = path.join(out, 'dir-symlink');
@@ -172,7 +171,7 @@ describe('kopeer', () => {
       , 'foo contents');
       assert.ok(fs.lstatSync(dirSymlinkPath).isDirectory());
       assert.deepEqual(fs.readdirSync(dirSymlinkPath), ['bar']);
-    }));
+    });
   });
 
   if (os.platform() !== 'win32') {
@@ -181,26 +180,25 @@ describe('kopeer', () => {
           , src = path.join(fixtures, 'src')
           , out = path.join(fixtures, 'out');
 
-      beforeEach(Bluebird.coroutine(function*() {
-        yield rimrafAsync(out);
-      }));
+      beforeEach(async () => {
+        await rimrafAsync(out);
+      });
 
-      it('copies broken symlinks by default', Bluebird.coroutine(function*() {
-        yield kopeer.directory(src, out);
+      it('copies broken symlinks by default', async () => {
+        await kopeer.directory(src, out);
         assert.equal(fs.readlinkSync(
           path.join(out, 'broken-symlink'))
         , 'does-not-exist');
-      }));
+      });
 
-      it('returns an error when dereference=true'
-      , Bluebird.coroutine(function*() {
+      it('returns an error when dereference=true', async () => {
         try {
-          yield kopeer.directory(src, out, { dereference: true })
+          await kopeer.directory(src, out, { dereference: true })
           assert.false();
         } catch(e) {
           assert.equal(e.code, 'ENOENT');
         }
-      }));
+      });
     });
   }
 
@@ -209,9 +207,9 @@ describe('kopeer', () => {
         , src = path.join(fixtures, 'src')
         , out = path.join(fixtures, 'out');
 
-    beforeEach(Bluebird.coroutine(function*() {
-      yield rimrafAsync(out);
-    }));
+    beforeEach(async () => {
+      await rimrafAsync(out);
+    });
 
     it('`kopeer.file` receives a callback', function(done) {
       kopeer.file(
@@ -275,14 +273,14 @@ describe('kopeer', () => {
 });
 
 describe('utilities', function () {
-  it('map.chunked processes all items', Bluebird.coroutine(function*() {
+  it('map.chunked processes all items', async () => {
     let i = 0;
-    yield (require('../dist/map').chunked)(_.range(100), 3, n => {
+    await (require('../dist/map').chunked)(_.range(100), 3, n => {
       assert.equal(i, n);
       i++;
       return Bluebird.resolve();
     });
     assert.equal(i, 100);
-  }));
+  });
 });
 
