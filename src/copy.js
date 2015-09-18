@@ -10,6 +10,12 @@ Bluebird.promisifyAll(fs);
 const debug = _debug('kopeer');
 const modern = /^v0\.1\d\.\d+/.test(process.version);
 
+/**
+ * Copy either a file or a symlink.
+ *
+ * @see copyFile
+ * @see copylink
+ */
 async function copyAnyFile(source, dest, stat) {
   await (stat.isSymbolicLink()
     ? copyLink(source, dest)
