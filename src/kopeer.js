@@ -8,6 +8,7 @@ import map from './map';
 import copy from './copy';
 import mkdirs from './mkdirs';
 import FSStatCache from './cache';
+import commit from './commit';
 
 const debug = _debug('kopeer');
 Bluebird.promisifyAll(fs);
@@ -85,77 +86,6 @@ async function copyFile(source, dest, options) {
   }
 };
 
-/**
- * Copy a directory
- *
- * Copy a directory from it's source location `source` to destination `dest`,
- * given `options`. Any intermediate directories will be created.
- *
- * @param {String} source
- * The absolute path the directory in question.
- *
- * @param {String} dest
- * The absolute path the target location.
- *
- * @param {Boolean} options.dereference
- * If true, makes symlinks "real" by following them.
- * If `source` is determined to be a file, not a directory, `EISFILE` is thrown.
- *
- * @param {Function} [options.rename]
- * Function applied to each new path, relative to it's new root.
- * Returns a string to alter the path.
- *
- * @param {Function} [options.filter]
- * Predicate function applied to each source path, in order to eliminate paths
- * early that are not welcome.
- */
-async function copyDir(source, dest, options) {
-
-  debug(`Walking \`${ source }\`...`);
-
-  const fsstats = new FSStatCache(options.dereference)
-      , stat = await fsstats.stat(source);
-
-  if (!stat.isDirectory()) {
-    await Bluebird.reject(new Error('EISFILE'));
-  } else {
-
-    /*
-     * Collect the mappings
-     */
-    debug('Collecting mappings...');
-    const mappings = await walk.dir(
-      source
-    , { filter: options.filter
-      , dereference: options.dereference
-      , cache: fsstats })
-
-      .map(item => (
-        { source: item.filepath
-        , dest: options.rename(path.resolve(dest, item.relpath)) }
-        ));
-
-      /*
-       * Create the directories
-       */
-      debug('Creating directories...');
-      await map.chunked(
-        _.unique(
-          [dest].concat(_.map(mappings, ({ dest }) => path.dirname(dest))))
-        , options.limit
-        , _.ary(mkdirs, 1));
-
-      /*
-       * Write the files
-       */
-      debug('Writing files...');
-      await map.chunked(
-        mappings
-      , options.limit
-      , async ({ source, dest }) =>
-        copy.file(source, dest, await fsstats.stat(source)));
-  }
-};
 
 /**
  * Callback/Defaults wrapper for @see copyFile
@@ -178,17 +108,68 @@ function _file(source, dest, options, callback) {
 }
 
 /**
- * Callback/Defaults wrapper for @see copyDir
+ * Copy a directory
+ *
+ * Copy a directory from it's source location `source` to destination `dest`,
+ * given `options`. Any intermediate directories will be created.
+ *
+ * @param {String} source
+ * The absolute path the directory in question.
+ *
+ * @param {String} destination
+ * The absolute path the target location.
+ *
+ * @param {Boolean} options.dereference
+ * If true, makes symlinks "real" by following them.
+ * If `source` is determined to be a file, not a directory, `EISFILE` is thrown.
+ *
+ * @param {Function} [options.rename]
+ * Function applied to each new path, relative to it's new root.
+ * Returns a string to alter the path.
+ *
+ * @param {Function} [options.filter]
+ * Predicate function applied to each source path, in order to eliminate paths
+ * early that are not welcome.
+ *
+ * @param {Function} [callback]
+ * The callback to invoke.
+ *
+ * @returns {Promise}
  */
 function _directory(directory, destination, options, callback) {
 
+  // shuffle arguments
   if (_.isFunction(options)) {
     callback = options;
     options = {};
   }
 
+  // fallback to sane defaults
+  options = defaults(options);
+
   return runPromise(
-    copyDir(directory, destination, defaults(options))
+    (async () => {
+      const fsstats = new FSStatCache(options.dereference)
+      if (!(await fsstats.stat(directory)).isDirectory()) {
+        await Bluebird.reject(new Error('EISFILE'));
+      } else {
+
+        // Collect the `{ source, dest }` mappings
+        debug('Collecting mappings...');
+        const mappings = await walk.dir(
+          directory
+        , { filter: options.filter
+          , dereference: options.dereference
+          , cache: fsstats })
+          .map(item => (
+            { source: item.filepath
+            , dest: options.rename(path.resolve(destination, item.relpath)) }
+            ));
+
+        // Create the directories and files.
+        await commit(mappings, options.limit, fsstats);
+      }
+    })()
   , callback);
 };
 
