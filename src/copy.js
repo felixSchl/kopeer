@@ -1,14 +1,20 @@
-'use strict';
-
 import Bluebird from 'bluebird';
 import fs from 'fs';
 import _ from 'lodash';
 import _debug from 'debug';
 
-const debug = _debug('kopeer');
+export default { file: copyAnyFile };
+
 Bluebird.promisifyAll(fs);
 
+const debug = _debug('kopeer');
 const modern = /^v0\.1\d\.\d+/.test(process.version);
+
+async function copyAnyFile(source, dest, stat) {
+  await (stat.isSymbolicLink()
+    ? copyLink(source, dest)
+    : copyFile(source, dest, stat));
+};
 
 /**
  * Copy a single, real file.
@@ -25,34 +31,20 @@ const modern = /^v0\.1\d\.\d+/.test(process.version);
  * @returns {Promise}
  * Returns the unit promise.
  */
-const copyFile
-= Bluebird.coroutine(function*(source, dest, stat) {
-
+async function copyFile(source, dest, stat) {
   debug('Copying file `' + source + '`' + ' to `' + dest + '`');
-
-  yield new Promise(function(resolve, reject) {
-
-    var readStream = fs.createReadStream(source)
-      , writeStream = fs.createWriteStream(dest, { mode: stat.mode });
-
-    writeStream.on('open', function() {
-      readStream.pipe(writeStream);
-    });
-
-    writeStream.on('error', function(error) {
-      reject(error);
-    });
-
-    readStream.on('error', function(error) {
-      reject(error);
-    });
-
+  await new Promise(function(resolve, reject) {
+    const readStream = fs.createReadStream(source)
+        , writeStream = fs.createWriteStream(dest, { mode: stat.mode });
+    writeStream.on('open', () => readStream.pipe(writeStream));
+    writeStream.on('error', reject)
+    readStream.on('error', reject)
     writeStream.on(modern ? 'finish' : 'close', _.ary(resolve, 0));
   });
 
-  yield fs.chmodAsync(dest, stat.mode)
-  yield fs.utimesAsync(dest, stat.atime, stat.mtime);
-});
+  await fs.chmodAsync(dest, stat.mode)
+  await fs.utimesAsync(dest, stat.atime, stat.mtime);
+};
 
 /**
  * Copy a single symlink.
@@ -66,14 +58,7 @@ const copyFile
  * @returns {Promise}
  * Returns the unit promise.
  */
-const copyLink
-= Bluebird.coroutine(function*(source, dest) {
-  yield fs.symlinkAsync(
-    yield fs.readlinkAsync(source)
-  , dest);
-});
-
-export default {
-  file: copyFile
-, link: copyLink
-}
+async function copyLink(source, dest) {
+  await fs.symlinkAsync(
+    await fs.readlinkAsync(source), dest);
+};

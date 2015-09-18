@@ -12,6 +12,66 @@ const debug = _debug('kopeer');
 Bluebird.promisifyAll(fs);
 
 /**
+ * Sanitize the defaults for all kopeer public methods.
+ *
+ * @param {Object} opts
+ * The options as passed in by the caller.
+ *
+ * @returns {Object}
+ * The sanitized options
+ */
+function defaults(opts) {
+  return _.defaults(opts || {}, {
+    limit: 512
+  , filter: null
+  , rename: _.identity
+  , dereference: false
+  });
+}
+
+function runPromise(promise, callback) {
+  if (callback) {
+    promise
+      .tap(_.ary(callback, 0))
+      .catch(callback);
+  }
+  return promise;
+}
+
+/**
+ * FSState cache
+ * Caches calls to `fs.stat` and `fs.lstat`.
+ */
+class FSStatCache {
+
+  /**
+   * @constructor
+   * @param {Boolean} dereference
+   * Dereference symlinks?
+   */
+  constructor(dereference) {
+    this._cache = {};
+    this._dereference = dereference;
+    this._fsstat = fs[this._dereference ? 'statAsync' : 'lstatAsync'];
+  }
+
+  /**
+   * Perform a fs stat/lstat call.
+   *
+   * @param {String} filepath
+   * The filepath to stat
+   *
+   * @returns {Promise.<Stat>}
+   */
+  async stat(filepath) {
+    if (!_.has(this._cache, filepath)) {
+      this._cache[filepath] = await this._fsstat.call(fs, filepath);
+    }
+    return this._cache[filepath];
+  }
+}
+
+/**
  * Copy a file
  *
  * Copy a file from source location `source` to destination `dest`,
@@ -28,33 +88,21 @@ Bluebird.promisifyAll(fs);
  * If true, makes symlinks "real" by following them.
  * If `source` is determined to be a directory, not a file, `EISDIR` is thrown.
  */
-const copyFile
-= Bluebird.coroutine(function*(source, dest, options) {
+async function copyFile(source, dest, options) {
 
   debug(`using options.limit: ${ options.limit }`);
   debug(`using options.dereference: ${ options.dereference }`);
 
-  const stat = yield (fs[
-    options.dereference
-      ? 'statAsync'
-      : 'lstatAsync'])(source);
+  const fsstats = new FSStatCache(options.dereference)
+      , stat = await fsstats.stat(source);
 
   if (stat.isDirectory()) {
-    yield Bluebird.reject(new Error('EISDIR'))
+    await Bluebird.reject(new Error('EISDIR'))
   } else {
-    /*
-     * Create the directories
-     */
-    yield mkdirs(path.dirname(dest));
-
-    /*
-     * Copy the file
-     */
-    yield stat.isSymbolicLink()
-      ? copy.link(source, dest)
-      : copy.file(source, dest, stat);
+    await mkdirs(path.dirname(dest));
+    await copy.file(source, dest, stat);
   }
-});
+};
 
 /**
  * Copy a directory
@@ -80,30 +128,27 @@ const copyFile
  * Predicate function applied to each source path, in order to eliminate paths
  * early that are not welcome.
  */
-const copyDir
-= Bluebird.coroutine(function*(source, dest, options, callback) {
+async function copyDir(source, dest, options) {
 
   debug(`Walking \`${ source }\`...`);
 
-  const stat = yield (fs[
-    options.dereference
-      ? 'statAsync'
-      : 'lstatAsync'])(source);
+  const fsstats = new FSStatCache(options.dereference)
+      , stat = await fsstats.stat(source);
 
   if (!stat.isDirectory()) {
-    yield Bluebird.reject(new Error('EISFILE'));
+    await Bluebird.reject(new Error('EISFILE'));
   } else {
 
     /*
      * Create the directories
      */
-    yield mkdirs(path.dirname(dest));
+    await mkdirs(path.dirname(dest));
 
     /*
      * Collect the mappings
      */
     debug('Collecting mappings...');
-    const mappings = yield walk.dir(
+    const mappings = await walk.dir(
       source
     , { filter: options.filter
       , followLinks: options.dereference })
@@ -116,10 +161,9 @@ const copyDir
        * Create the directories
        */
       debug('Creating directories...');
-      yield map.chunked(
+      await map.chunked(
         _.unique(
-          [dest].concat(
-            _.map(
+          [dest].concat(_.map(
               mappings
             , unit => path.dirname(unit.targetPath))))
         , options.limit
@@ -129,74 +173,50 @@ const copyDir
        * Write the files
        */
       debug('Writing files...');
-      yield map.chunked(
+      await map.chunked(
         mappings
       , options.limit
       , unit =>
-        (unit.sourceEntry.stats.isSymbolicLink() ? copy.link : copy.file)
-          (unit.sourceEntry.filepath
-          , unit.targetPath
-          , unit.sourceEntry.stats));
+        copy.file(
+          unit.sourceEntry.filepath
+        , unit.targetPath
+        , unit.sourceEntry.stats));
   }
-});
+};
 
 /**
  * Callback/Defaults wrapper for @see copyFile
  */
 function _file(source, dest, options, callback) {
+
   if (_.isFunction(options)) {
     callback = options;
     options = {};
   }
 
-  const promise = copyFile(
-    source
-  , (_.endsWith(dest, '/') || _.endsWith(dest, '\\'))
-      ? dest = path.resolve(dest, path.basename(source))
-      : dest
-  , _.defaults(options || {}, {
-      limit: 512
-    , filter: null
-    , rename: _.identity
-    , dereference: false
-    })
+  return runPromise(
+    copyFile(
+      source
+    , (_.endsWith(dest, '/') || _.endsWith(dest, '\\'))
+        ? dest = path.resolve(dest, path.basename(source))
+        : dest
+    , defaults(options))
   , callback);
-
-  if (callback) {
-    promise
-      .tap(_.ary(callback, 0))
-      .catch(callback);
-  }
-
-  return promise;
 }
 
 /**
  * Callback/Defaults wrapper for @see copyDir
  */
 function _directory(directory, destination, options, callback) {
+
   if (_.isFunction(options)) {
     callback = options;
     options = {};
   }
 
-  const promise = copyDir(
-    directory
-  , destination
-  , _.defaults(options || {}, {
-      filter: null
-    , limit: 512
-    , rename: _.identity
-    , dereference: false
-    }));
-
-  if (callback) {
-    promise
-      .tap(_.ary(callback, 0))
-      .catch(callback);
-  }
-
-  return promise;
+  return runPromise(
+    copyDir(directory, destination, defaults(options))
+  , callback);
 };
 
 /**
@@ -210,19 +230,13 @@ function _kopeer(source, dest, options, callback) {
     options = {};
   }
 
-  const promise = (fs[options.dereference ? 'statAsync' : 'lstatAsync'])(source)
-    .then(function(stat) {
-      return (stat.isDirectory() ? _directory : _file)(source, dest, options);
-    })
-  ;
+  const fsstats = new FSStatCache(options.dereference);
 
-  if (callback) {
-    promise
-      .tap(_.ary(callback, 0))
-      .catch(callback);
-  }
-
-  return promise;
+  return runPromise(
+    fsstats.stat(source)
+      .then(stat => stat.isDirectory() ? _directory : _file)
+      .then(fn => fn(source, dest, options))
+  , callback);
 };
 
 module.exports = _kopeer;

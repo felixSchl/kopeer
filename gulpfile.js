@@ -7,7 +7,10 @@ var gulp = require('gulp')
 gulp.task('make', function () {
   return gulp.src(['src/**/*.js'])
     .pipe(sourcemaps.init())
-    .pipe(babel({ optional: [ 'runtime' ] }))
+    .pipe(babel({ optional: [
+      'runtime'
+    , 'bluebirdCoroutines'
+    ] }))
     .pipe(sourcemaps.write('.'))
     .pipe(gulp.dest('dist'));
 });

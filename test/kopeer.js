@@ -241,6 +241,7 @@ describe('kopeer', () => {
         path.resolve(src, 'a')
       , path.resolve(out, 'a')
       , function(err) {
+          console.log(err);
           assert.strictEqual(err, undefined);
           done(err);
         });
