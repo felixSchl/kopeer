@@ -52,7 +52,6 @@ function runPromise(promise, callback) {
   return promise;
 }
 
-
 /**
  * Copy a file
  *
@@ -62,48 +61,52 @@ function runPromise(promise, callback) {
  * @param {String} source
  * The absolute path the file in question.
  *
- * @param {String} dest
+ * @param {String} destination
  * The absolute path the target location of the file.
  *
  * @param {Object} options
  * @param {Boolean} options.dereference
  * If true, makes symlinks "real" by following them.
  * If `source` is determined to be a directory, not a file, `EISDIR` is thrown.
+ *
+ * @param {Function} [callback]
+ * The callback to invoke.
+ *
+ * @returns {Promise}
  */
-async function copyFile(source, dest, options) {
+function _file(source, destination, options, callback) {
 
-  debug(`using options.limit: ${ options.limit }`);
-  debug(`using options.dereference: ${ options.dereference }`);
-
-  const fsstats = new FSStatCache(options.dereference)
-      , stat = await fsstats.stat(source);
-
-  if (stat.isDirectory()) {
-    await Bluebird.reject(new Error('EISDIR'))
-  } else {
-    await mkdirs(path.dirname(dest));
-    await copy.file(source, dest, stat);
-  }
-};
-
-
-/**
- * Callback/Defaults wrapper for @see copyFile
- */
-function _file(source, dest, options, callback) {
-
+  // shuffle arguments
   if (_.isFunction(options)) {
     callback = options;
     options = {};
   }
 
+  // fallback to sane defaults
+  options = defaults(options);
+
+  debug(`using options.limit: ${ options.limit }`);
+  debug(`using options.dereference: ${ options.dereference }`);
+
+  // If the destination path looks like a directory, resolve the source path
+  // relative to the destination path.
+  destination = (_.endsWith(destination, '/') || _.endsWith(destination, '\\'))
+    ? path.resolve(destination, path.basename(source))
+    : destination;
+
   return runPromise(
-    copyFile(
-      source
-    , (_.endsWith(dest, '/') || _.endsWith(dest, '\\'))
-        ? dest = path.resolve(dest, path.basename(source))
-        : dest
-    , defaults(options))
+    (async () => {
+      const fsstats = new FSStatCache(options.dereference);
+
+      if ((await fsstats.stat(source)).isDirectory()) {
+        await Bluebird.reject(new Error('EISDIR'))
+      } else {
+        await commit(
+          [{ source: source, dest: destination }]
+        , options.limit
+        , fsstats);
+      }
+    })()
   , callback);
 }
 
@@ -149,7 +152,8 @@ function _directory(directory, destination, options, callback) {
 
   return runPromise(
     (async () => {
-      const fsstats = new FSStatCache(options.dereference)
+      const fsstats = new FSStatCache(options.dereference);
+
       if (!(await fsstats.stat(directory)).isDirectory()) {
         await Bluebird.reject(new Error('EISFILE'));
       } else {
