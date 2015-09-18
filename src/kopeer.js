@@ -29,6 +29,18 @@ function defaults(opts) {
   });
 }
 
+/**
+ * Run a promise and invoke the given callback
+ * handle on success and error.
+ *
+ * @param {Promise} promise
+ * The promsie to run
+ *
+ * @param {Function} callback
+ * The callback to invoke
+ *
+ * @returns {Promise}
+ */
 function runPromise(promise, callback) {
   if (callback) {
     promise
