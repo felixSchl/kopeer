@@ -127,11 +127,12 @@ async function copyDir(source, dest, options) {
     const mappings = await walk.dir(
       source
     , { filter: options.filter
-      , followLinks: options.dereference
+      , dereference: options.dereference
       , cache: fsstats })
-      .map(entry => (
-        { sourceEntry: entry
-        , targetPath: options.rename(path.resolve(dest, entry.relpath)) }
+
+      .map(item => (
+        { source: item.filepath
+        , dest: options.rename(path.resolve(dest, item.relpath)) }
         ));
 
       /*
@@ -140,9 +141,7 @@ async function copyDir(source, dest, options) {
       debug('Creating directories...');
       await map.chunked(
         _.unique(
-          [dest].concat(_.map(
-              mappings
-            , unit => path.dirname(unit.targetPath))))
+          [dest].concat(_.map(mappings, ({ dest }) => path.dirname(dest))))
         , options.limit
         , _.ary(mkdirs, 1));
 
@@ -153,11 +152,8 @@ async function copyDir(source, dest, options) {
       await map.chunked(
         mappings
       , options.limit
-      , unit =>
-        copy.file(
-          unit.sourceEntry.filepath
-        , unit.targetPath
-        , unit.sourceEntry.stats));
+      , async ({ source, dest }) =>
+        copy.file(source, dest, await fsstats.stat(source)));
   }
 };
 

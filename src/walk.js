@@ -46,9 +46,9 @@ async function walkDirectory(top, dir, filter, fsstats) {
       , relpath: path.normalize(path.relative(top, filepath))
       , stats: await fsstats.stat(filepath)
     }))
-    .map(entry =>
-      entry.stats.isDirectory()
-        ?  walkDirectory(top, entry.filepath, filter, fsstats)
-        : entry)
+    .map(({ stats, filepath, relpath }) =>
+      stats.isDirectory()
+        ?  walkDirectory(top, filepath, filter, fsstats)
+        : { filepath: filepath, relpath: relpath })
     .reduce((a, b) => a.concat(b), []);
 };
