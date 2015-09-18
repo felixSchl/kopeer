@@ -11,6 +11,19 @@ const debug = _debug('kopeer');
 const modern = /^v0\.1\d\.\d+/.test(process.version);
 
 /**
+ * Batch-copy files.
+ *
+ * @param {Array.<{ source, dest }>} items
+ * The source, dest tuples of files to copy
+ *
+ * @returns {Promise}
+ * Returns the unit promise.
+ */
+async function batch(items) {
+
+}
+
+/**
  * Copy either a file or a symlink.
  *
  * @see copyFile

@@ -127,7 +127,8 @@ async function copyDir(source, dest, options) {
     const mappings = await walk.dir(
       source
     , { filter: options.filter
-      , followLinks: options.dereference })
+      , followLinks: options.dereference
+      , cache: fsstats })
       .map(entry => (
         { sourceEntry: entry
         , targetPath: options.rename(path.resolve(dest, entry.relpath)) }

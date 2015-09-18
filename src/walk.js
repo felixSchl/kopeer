@@ -4,6 +4,7 @@ import Bluebird from 'bluebird';
 import fs from 'fs';
 import path from 'path';
 import _ from 'lodash';
+import FSStatCache from './cache';
 
 export default { dir: dir }
 
@@ -27,29 +28,27 @@ export default { dir: dir }
 export function dir(top, options) {
   options = _.defaults(options || {}, {
       filter: _.constant(true)
-    , followLinks: false
+    , cache: new FSStatCache(options.followLinks)
   });
-  return _walkDirectory(top, top, options.filter, options.followLinks);
+
+  return walkDirectory(top, top, options.filter, options.cache);
 };
 
-const _walkDirectory
-= Bluebird.coroutine(function*(top, dir, filter, followLinks) {
+async function walkDirectory(top, dir, filter, fsstats) {
   return fs.readdirAsync(dir)
     .map(filename => path.resolve(dir, filename))
     .filter(fullpath => Bluebird.resolve(
       filter
         ? filter(path.relative(top, fullpath))
         : true))
-    .map(Bluebird.coroutine(function*(filepath) {
-      return {
+    .map(async (filepath) => ({
         filepath: filepath
       , relpath: path.normalize(path.relative(top, filepath))
-      , stats: yield (fs[followLinks ? 'statAsync' : 'lstatAsync'])(filepath)
-      };
+      , stats: await fsstats.stat(filepath)
     }))
     .map(entry =>
       entry.stats.isDirectory()
-        ?  _walkDirectory(top, entry.filepath, filter, followLinks)
+        ?  walkDirectory(top, entry.filepath, filter, fsstats)
         : entry)
     .reduce((a, b) => a.concat(b), []);
-});
+};
