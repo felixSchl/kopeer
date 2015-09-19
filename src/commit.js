@@ -38,5 +38,5 @@ export default async function commit(mappings, limit, fsstats) {
     mappings
   , limit
   , async ({ source, dest }) =>
-    copy.file(source, dest, await fsstats.stat(source)));
+      copy.file(source, dest, await fsstats.stat(source)));
 }

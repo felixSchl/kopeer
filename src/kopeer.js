@@ -9,6 +9,7 @@ import copy from './copy';
 import mkdirs from './mkdirs';
 import FSStatCache from './cache';
 import commit from './commit';
+import { Minimatch } from 'minimatch';
 
 const debug = _debug('kopeer');
 Bluebird.promisifyAll(fs);
@@ -28,6 +29,7 @@ function defaults(opts) {
   , filter: null
   , rename: _.identity
   , dereference: false
+  , ignore: null
   });
 }
 
@@ -130,9 +132,13 @@ function _file(source, destination, options, callback) {
  * Function applied to each new path, relative to it's new root.
  * Returns a string to alter the path.
  *
+ * @deprecated
  * @param {Function} [options.filter]
  * Predicate function applied to each source path, in order to eliminate paths
  * early that are not welcome.
+ *
+ * @param {String|Array.<String>} [options.ignore]
+ * A `.gitignore` like pattern.
  *
  * @param {Function} [callback]
  * The callback to invoke.
@@ -158,11 +164,25 @@ function _directory(directory, destination, options, callback) {
         await Bluebird.reject(new Error('EISFILE'));
       } else {
 
+        let filter;
+        if (options.ignore) {
+          const minis = _.map(
+            _.isArray(options.ignore)
+              ? options.ignore
+              : [ options.ignore ]
+          , p => new Minimatch(p));
+          filter = p => _.all(minis, m => m.match(p) === false);
+        } else {
+          filter = options.filter
+            ? options.filter
+            : _.constant(true);
+        }
+
         // Collect the `{ source, dest }` mappings
         debug('Collecting mappings...');
         const mappings = await walk.dir(
           directory
-        , { filter: options.filter
+        , { filter: filter
           , dereference: options.dereference
           , cache: fsstats })
           .map(item => (

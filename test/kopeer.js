@@ -79,23 +79,37 @@ describe('kopeer', () => {
     });
 
     describe('when copying files using filter', () => {
-      before(async () => {
-        await rimrafAsync(out);
+      beforeEach(() => rimrafAsync(out));
+
+      it('files are copied correctly', async () => {
         await kopeer.directory(
           src
         , out
         , { filter: relpath => _.last(relpath) != 'a' });
+        const srcFiles = await readDirFilesAsync(src, 'utf8', true)
+            , outFiles = await readDirFilesAsync(out, 'utf8', true)
+            , filtered = xs =>
+                _.omit(_.mapValues(xs, (file, filename) =>
+                  file instanceof Object
+                    ? filtered(file)
+                    : _.last(filename) == 'a' ? undefined : file)
+                , v => v === undefined);
+          assert.deepEqual(filtered(srcFiles), outFiles);
       });
 
       it('files are copied correctly', async () => {
-          const srcFiles = await readDirFilesAsync(src, 'utf8', true)
-              , outFiles = await readDirFilesAsync(out, 'utf8', true)
-              , filtered = xs =>
-                  _.omit(_.mapValues(xs, (file, filename) =>
-                    file instanceof Object
-                      ? filtered(file)
-                      : _.last(filename) == 'a' ? undefined : file)
-                  , v => v === undefined);
+        await kopeer.directory(
+          src
+        , out
+        , { ignore: [ '**/*a' ] });
+        const srcFiles = await readDirFilesAsync(src, 'utf8', true)
+            , outFiles = await readDirFilesAsync(out, 'utf8', true)
+            , filtered = xs =>
+                _.omit(_.mapValues(xs, (file, filename) =>
+                  file instanceof Object
+                    ? filtered(file)
+                    : _.last(filename) == 'a' ? undefined : file)
+                , v => v === undefined);
           assert.deepEqual(filtered(srcFiles), outFiles);
       });
     });
