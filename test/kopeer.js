@@ -24,17 +24,15 @@ describe('kopeer', () => {
         , src = path.join(fixtures, 'src')
         , out = path.join(fixtures, 'out');
 
-    before(() => {
-      return rimrafAsync(out);
-    });
+    before(() => rimrafAsync(out));
 
-    describe('when copying a single file', () => {
+    describe('copying a single file', () => {
       describe('to a path that signifies a filename',() => {
         it('file is copied correctly', async function() {
           await kopeer.file(path.resolve(src, 'a'), path.resolve(out, 'a'));
-          const srcFiles = await readDirFilesAsync(src, 'utf8', true)
-              , outFiles = await readDirFilesAsync(out, 'utf8', true);
-          assert.deepEqual(_.pick(srcFiles, 'a'), outFiles);
+          assert.deepEqual(
+            _.pick((await readDirFilesAsync(src, 'utf8', true)), 'a')
+          , await readDirFilesAsync(out, 'utf8', true));
         });
       });
 
@@ -42,43 +40,37 @@ describe('kopeer', () => {
         it('file is copied correctly', async () => {
           const target = path.join(out, 'dir/');
           await kopeer.file(path.resolve(src, 'a'), target);
-          const srcFiles = await readDirFilesAsync(src, 'utf8', true)
-              , outFiles = await readDirFilesAsync(target, 'utf8', true);
-          assert.deepEqual(_.pick(srcFiles, 'a'), outFiles);
+          assert.deepEqual(
+            _.pick((await readDirFilesAsync(src, 'utf8', true)), 'a')
+          , await readDirFilesAsync(target, 'utf8', true));
         });
       });
     });
 
-    describe('when copying a directory of files', () => {
-      before(async () => {
-        await rimrafAsync(out);
+    describe('copying a directory of files', () => {
+      beforeEach(() => rimrafAsync(out));
+
+      it('files are copied correctly', async () => {
         await kopeer.directory(src, out);
-      });
-
-      it('files are copied correctly', async () => {
-        const srcFiles = await readDirFilesAsync(src, 'utf8', true)
-            , outFiles = await readDirFilesAsync(out, 'utf8', true);
-        assert.deepEqual(srcFiles, outFiles);
+        assert.deepEqual(
+          await readDirFilesAsync(src, 'utf8', true)
+        , await readDirFilesAsync(out, 'utf8', true));
       });
     });
 
-    describe('when copying a directory of files to non-existant folder', () => {
+    describe('copying a directory of files to non-existant folder', () => {
+      beforeEach(() => rimrafAsync(out));
 
-      const target = path.resolve(out, 'foo/bar/');
-
-      before(async () => {
-        await rimrafAsync(out);
+      it('files are copied correctly', async () => {
+        const target = path.resolve(out, 'foo/bar/');
         await  kopeer.directory(src, target);
-      });
-
-      it('files are copied correctly', async () => {
-        const srcFiles = await readDirFilesAsync(src, 'utf8', true)
-            , outFiles = await readDirFilesAsync(target, 'utf8', true);
-        assert.deepEqual(srcFiles, outFiles);
+        assert.deepEqual(
+          await readDirFilesAsync(src, 'utf8', true)
+        , await readDirFilesAsync(target, 'utf8', true));
       });
     });
 
-    describe('when copying files using filter', () => {
+    describe('copying files using filter', () => {
       beforeEach(() => rimrafAsync(out));
 
       it('files are copied correctly', async () => {
@@ -114,14 +106,14 @@ describe('kopeer', () => {
       });
     });
 
-    describe('when writing over existing files', () => {
+    describe('writing over existing files', () => {
       it('the copy is completed successfully', async () => {
         await kopeer.directory(src, out, { clobber: false })
         await kopeer.directory(src, out, { clobber: false })
       });
     });
 
-    describe('when using rename', () => {
+    describe('using rename', () => {
       it('output files are correctly redirected', async () => {
         await kopeer.directory(src, out, {
           rename: relpath =>
@@ -221,7 +213,7 @@ describe('kopeer', () => {
     });
   }
 
-  describe('when given a callback parameter', function() {
+  describe('given a callback parameter', function() {
     const fixtures = path.join(__dirname, 'regular-fixtures')
         , src = path.join(fixtures, 'src')
         , out = path.join(fixtures, 'out');
