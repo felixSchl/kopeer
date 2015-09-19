@@ -62,7 +62,7 @@ function _throttled(xs, limit, f, onNext, onCompleted, onError) {
   onError = onError || _.ary(Bluebird.reject, 1);
   let i = 0;
   return Bluebird.all(_.map(
-    _.range(limit)
+    _.range(Math.max(Math.min(limit, xs.length), limit))
   , __ => (function work(isRetry, lastW, lastJ) {
         const j = isRetry ? lastJ : i
             , w = isRetry ? lastW : xs[j]
