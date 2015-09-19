@@ -98,6 +98,10 @@ kopeer.directory('/files', '/backup', function(err) { /* ... */ });
     * **options.filter (Function: Filepath -> Bool) [default: noop]**
         * Given the target path, decide whether to include this file.
 
+    * **options.ignore (String|Array\<String\>) [default: []]** <sub>since v1.0.0</sub>
+        * Given a list of patterns to ignore, create a [minimatch][minimatch]
+          filter from each and apply to each path.
+
     * **options.dereference (Bool) [default: false]**
         * If true, copy symlinked files and folders into the target file tree.
 
@@ -130,3 +134,5 @@ npm test
 ```
 
 Then fix bug / add feature and submit a pull request.
+
+[minimatch]: https://www.npmjs.com/package/minimatch
