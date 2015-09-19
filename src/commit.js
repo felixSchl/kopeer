@@ -26,7 +26,7 @@ Bluebird.promisifyAll(fs);
 export default async function commit(mappings, limit, fsstats) {
   // Create the directories
   debug('Creating directories...');
-  await map.chunked(
+  await map.throttled(
     _.unique(
       _.map(mappings, ({ dest }) => path.dirname(dest)))
     , limit
@@ -34,7 +34,7 @@ export default async function commit(mappings, limit, fsstats) {
 
   // Write the files
   debug('Writing files...');
-  await map.chunked(
+  await map.throttled(
     mappings
   , limit
   , async ({ source, dest }) =>

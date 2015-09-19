@@ -15,10 +15,10 @@ Bluebird.promisifyAll(fs);
 // Kopeer internal
 const mkdirs = require('../dist/mkdirs')
     , walk = require('../dist/walk')
-    , mapChunked = require('../dist/map').chunked;
+    , map = require('../dist/map');
 
 async function readLargeDir(dir) {
-  return await mapChunked(
+  return await map.throttledOrd(
     _.map(await walk.dir(dir), _.property('filepath'))
   , 512
   , async x => {
@@ -139,7 +139,7 @@ describe('kopeer', () => {
             , out = path.join(__dirname, 'many-files', 'out')
         await rimrafAsync(src);
         await mkdirs(src);
-        await(mapChunked(_.range(8192), 512, n =>
+        await(map.throttledOrd(_.range(8192), 512, n =>
           fs.writeFileAsync(
             path.resolve(src, n.toString())
           , `foo-${ n }`)
@@ -310,12 +310,36 @@ describe('kopeer', () => {
 describe('utilities', function () {
   it('map.chunked processes all items', async () => {
     let i = 0;
-    await mapChunked(_.range(100), 3, n => {
+    await map.chunked(_.range(100), 3, n => {
       assert.equal(i, n);
       i++;
       return Bluebird.resolve();
     });
     assert.equal(i, 100);
+  });
+
+  it('map.throttledOrd returns in order', async () => {
+    assert.deepEqual(
+      _.range(100)
+    , await map.throttledOrd(_.range(100), 3, _.identity));
+  });
+
+  it('map.throttled collects all items', async () => {
+    const res = await map.throttled(_.range(100), 3, _.identity);
+    _.each(_.range(100), i => assert(_.contains(res, i)));
+  });
+
+  it('map.throttled collects all items', async () => {
+    let hasThrown = false;
+    const res = await map.throttled(_.range(100), 3, n => {
+      if (n === 1 && !hasThrown) {
+        hasThrown = true;
+        return Bluebird.reject({ code: 'EMFILE' })
+      } else {
+        return n
+      }
+    });
+    _.each(_.range(100), i => assert(_.contains(res, i)));
   });
 });
 
