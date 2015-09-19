@@ -15,7 +15,7 @@ export default { dir: dir }
  * The directory to walk
  *
  * @param {Object} options
- * @param {Boolean} options.followLinks
+ * @param {Boolean} options.dereference
  * Resolve symbolic links and treat them as real files.
  *
  * @param {Function} options.filter
@@ -27,10 +27,10 @@ export default { dir: dir }
  */
 export function dir(top, options) {
   options = _.defaults(options || {}, {
-      filter: _.constant(true)
-    , cache: new FSStatCache(options.followLinks)
+    filter: _.constant(true)
+  , dereference: true
   });
-
+  options.cache = options.cache || new FSStatCache(options.dereference);
   return walkDirectory(top, top, options.filter, options.cache);
 };
 

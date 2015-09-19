@@ -24,7 +24,6 @@ Bluebird.promisifyAll(fs);
  * The FFStateCache to get file stats from.
  */
 export default async function commit(mappings, limit, fsstats) {
-
   // Create the directories
   debug('Creating directories...');
   await map.chunked(

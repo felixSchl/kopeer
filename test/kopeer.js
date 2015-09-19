@@ -12,6 +12,22 @@ const rimrafAsync = Bluebird.promisify(rimraf);
 const readDirFilesAsync = Bluebird.promisify(readDirFiles);
 Bluebird.promisifyAll(fs);
 
+// Kopeer internal
+const mkdirs = require('../dist/mkdirs')
+    , walk = require('../dist/walk')
+    , mapChunked = require('../dist/map').chunked;
+
+async function readLargeDir(dir) {
+  return await mapChunked(
+    _.map(await walk.dir(dir), _.property('filepath'))
+  , 512
+  , async x => {
+      const o = {};
+      o[path.relative(dir, x)] = (await fs.readFileAsync(x)).toString('utf-8');
+      return o;
+    });
+}
+
 describe('kopeer', () => {
 
   describe('regular files and directories', () => {
@@ -110,11 +126,30 @@ describe('kopeer', () => {
               ? path.resolve(path.dirname(relpath), 'z')
               : relpath
         });
-        const srcFiles = await readDirFilesAsync(src, 'utf8', true)
-            , outFiles = await readDirFilesAsync(out, 'utf8', true);
-        assert.deepEqual(srcFiles.a, outFiles.z);
+        assert.deepEqual(
+          (await readDirFilesAsync(src, 'utf8', true)).a
+        , (await readDirFilesAsync(out, 'utf8', true)).z);
       });
     });
+
+    describe('when copying many files', () => {
+      it('should not fail on `EMFILE`', async function() {
+        this.timeout(20000);
+        const src = path.join(__dirname, 'many-files', 'src')
+            , out = path.join(__dirname, 'many-files', 'out')
+        await rimrafAsync(src);
+        await mkdirs(src);
+        await(mapChunked(_.range(8192), 512, n =>
+          fs.writeFileAsync(
+            path.resolve(src, n.toString())
+          , `foo-${ n }`)
+        ));
+        await kopeer(src, out, { limit: 512 });
+        assert.deepEqual(
+          await readLargeDir(src)
+        , await readLargeDir(out));
+      });
+    })
   });
 
   describe('symlink handling', function () {
@@ -275,7 +310,7 @@ describe('kopeer', () => {
 describe('utilities', function () {
   it('map.chunked processes all items', async () => {
     let i = 0;
-    await (require('../dist/map').chunked)(_.range(100), 3, n => {
+    await mapChunked(_.range(100), 3, n => {
       assert.equal(i, n);
       i++;
       return Bluebird.resolve();

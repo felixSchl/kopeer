@@ -188,6 +188,8 @@ function _kopeer(source, dest, options, callback) {
     options = {};
   }
 
+  options = defaults(options);
+
   const fsstats = new FSStatCache(options.dereference);
 
   return runPromise(
