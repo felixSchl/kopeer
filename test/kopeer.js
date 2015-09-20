@@ -81,7 +81,7 @@ describe('Internal module: Worker', () => {
 });
 
 describe('Internal module: Map', function () {
-  it('`map.chunked` processes all items', async () => {
+  it('`map.chunked` should processes all items', async () => {
     let i = 0;
     await map.chunked(_.range(100), 3, n => {
       assert.equal(i, n);
@@ -91,18 +91,18 @@ describe('Internal module: Map', function () {
     assert.equal(i, 100);
   });
 
-  it('`map.throttledOrd` returns in order', async () => {
+  it('`map.throttledOrd` should return in order', async () => {
     assert.deepEqual(
       _.range(100)
     , await map.throttledOrd(_.range(100), 3, _.identity));
   });
 
-  it('`map.throttled` collects all items', async () => {
+  it('`map.throttled` should collect all items', async () => {
     const res = await map.throttled(_.range(100), 3, _.identity);
     _.each(_.range(100), i => assert(_.contains(res, i)));
   });
 
-  it('`map.throttled` collects all items', async () => {
+  it('`map.throttled` should collect all items', async () => {
     let hasThrown = false;
     const res = await map.throttled(_.range(100), 3, n => {
       if (n === 1 && !hasThrown) {
