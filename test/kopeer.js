@@ -18,7 +18,7 @@ const mkdirs = require('../dist/mkdirs')
     , Worker = require('../dist/Worker')
     , map = require('../dist/map');
 
-describe('Worker', () => {
+describe('Internal module: Worker', () => {
   it('should emit the `completed` event', async () => {
     const worker = new Worker(
       w => Bluebird.resolve(w).delay(10)
@@ -77,6 +77,42 @@ describe('Worker', () => {
       worker.on('error', resolve);
       worker.queue(1);
     });
+  });
+});
+
+describe('Internal module: Map', function () {
+  it('`map.chunked` processes all items', async () => {
+    let i = 0;
+    await map.chunked(_.range(100), 3, n => {
+      assert.equal(i, n);
+      i++;
+      return Bluebird.resolve();
+    });
+    assert.equal(i, 100);
+  });
+
+  it('`map.throttledOrd` returns in order', async () => {
+    assert.deepEqual(
+      _.range(100)
+    , await map.throttledOrd(_.range(100), 3, _.identity));
+  });
+
+  it('`map.throttled` collects all items', async () => {
+    const res = await map.throttled(_.range(100), 3, _.identity);
+    _.each(_.range(100), i => assert(_.contains(res, i)));
+  });
+
+  it('`map.throttled` collects all items', async () => {
+    let hasThrown = false;
+    const res = await map.throttled(_.range(100), 3, n => {
+      if (n === 1 && !hasThrown) {
+        hasThrown = true;
+        return Bluebird.reject({ code: 'EMFILE' })
+      } else {
+        return n
+      }
+    });
+    _.each(_.range(100), i => assert(_.contains(res, i)));
   });
 });
 
@@ -345,40 +381,3 @@ describe('kopeer', () => {
     });
   });
 });
-
-describe('utilities', function () {
-  it('map.chunked processes all items', async () => {
-    let i = 0;
-    await map.chunked(_.range(100), 3, n => {
-      assert.equal(i, n);
-      i++;
-      return Bluebird.resolve();
-    });
-    assert.equal(i, 100);
-  });
-
-  it('map.throttledOrd returns in order', async () => {
-    assert.deepEqual(
-      _.range(100)
-    , await map.throttledOrd(_.range(100), 3, _.identity));
-  });
-
-  it('map.throttled collects all items', async () => {
-    const res = await map.throttled(_.range(100), 3, _.identity);
-    _.each(_.range(100), i => assert(_.contains(res, i)));
-  });
-
-  it('map.throttled collects all items', async () => {
-    let hasThrown = false;
-    const res = await map.throttled(_.range(100), 3, n => {
-      if (n === 1 && !hasThrown) {
-        hasThrown = true;
-        return Bluebird.reject({ code: 'EMFILE' })
-      } else {
-        return n
-      }
-    });
-    _.each(_.range(100), i => assert(_.contains(res, i)));
-  });
-});
-
