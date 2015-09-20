@@ -1,4 +1,5 @@
 import _ from 'lodash';
+import Worker from './Worker';
 import Bluebird from 'bluebird';
 
 export default { chunked: chunked
@@ -35,8 +36,8 @@ function chunked(xs, limit, f) {
  * Run over a list and turn each element into a promise, using `f`.
  * Process a number of `limit` promises in parallel at a time.
  *
- * @param {Array} xs
- * The list array to iterate
+ * @param {Array} ws
+ * The array of work to iterate
  *
  * @param {Number} limit
  * The concurrency limit
@@ -58,26 +59,20 @@ function chunked(xs, limit, f) {
  * @returns {Promise}
  * Returns the composite unit promise.
  */
-function _throttled(xs, limit, f, onNext, onCompleted, onError) {
-  onError = onError || _.ary(Bluebird.reject, 1);
-  let i = 0;
-  return Bluebird.all(_.map(
-    _.range(Math.max(Math.min(limit, xs.length), limit))
-  , __ => (function work(isRetry, lastW, lastJ) {
-        const j = isRetry ? lastJ : i
-            , w = isRetry ? lastW : xs[j]
-        if (!isRetry) {
-          i += 1;
-        }
-        return (j < xs.length)
-          ? Bluebird.resolve(f(w))
-              .tap(_.partialRight(onNext, j))
-              .then(
-                _.ary(work, 0)
-              , e => onError(e, () => work(true, w, j)) || Bluebird.reject(e))
-          : Bluebird.resolve();
-    })()
-  )).then(_.ary(onCompleted, 0));
+function _throttled(ws, limit, f, onNext, onCompleted, onError) {
+  const worker = new Worker(
+    ({ w, i }) => Bluebird.resolve(f(w)).then(r => ({ r: r, i: i }))
+  , { limit: limit
+    , recover: onError });
+  worker.on('next', ({ r, i }) => { onNext(r, i); });
+  return new Bluebird(resolve => {
+    worker.once('completed', () => resolve(onCompleted()));
+    if (ws.length) {
+      _.each(ws, (w, i) => worker.queue({ i: i, w: w }));
+    } else {
+      resolve(onCompleted());
+    }
+  });
 }
 
 /**
@@ -85,7 +80,7 @@ function _throttled(xs, limit, f, onNext, onCompleted, onError) {
  * Process a number of `limit` promises in parallel at a time.
  *
  * @param {Array} xs
- * The list array to iterate
+ * The array of work to iterate
  *
  * @param {Number} limit
  * The concurrency limit

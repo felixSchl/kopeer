@@ -15,7 +15,51 @@ Bluebird.promisifyAll(fs);
 // Kopeer internal
 const mkdirs = require('../dist/mkdirs')
     , walk = require('../dist/walk')
+    , Worker = require('../dist/Worker')
     , map = require('../dist/map');
+
+describe('Worker', () => {
+  it('should emit the `completed` event', async () => {
+    const worker = new Worker(
+      w => Bluebird.resolve(w).delay(10)
+    , { limit: 1 });
+    await new Bluebird(resolve => {
+      worker.on('completed', resolve);
+      worker.queue(1);
+      worker.queue(2);
+    });
+  });
+
+  it('should emit the `next` event', async () => {
+    const worker = new Worker(
+      w => Bluebird.resolve(w).delay(10)
+    , { limit: 1 });
+    await new Bluebird(resolve => {
+      worker.on('next', resolve);
+      worker.queue(1);
+    });
+  });
+
+  it('should recover failure', async () => {
+    let hasThrown = false;
+    const worker = new Worker(
+      w => {
+        if (hasThrown) {
+          return Bluebird.resolve(w);
+        } else {
+          hasThrown = true;
+          return Bluebird.reject({ code: 'EMFILE' });
+        }
+      }
+    , { limit: 1
+      , recover: (e, retry) => e.code === 'EMFILE' ? retry() : null
+      });
+    await new Bluebird(resolve => {
+      worker.on('completed', resolve);
+      worker.queue(1);
+    });
+  });
+});
 
 describe('kopeer', () => {
 
