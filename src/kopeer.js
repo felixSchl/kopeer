@@ -34,27 +34,6 @@ function defaults(opts) {
 }
 
 /**
- * Run a promise and invoke the given callback
- * handle on success and error.
- *
- * @param {Promise} promise
- * The promsie to run
- *
- * @param {Function} callback
- * The callback to invoke
- *
- * @returns {Promise}
- */
-function runPromise(promise, callback) {
-  if (callback) {
-    promise
-      .tap(_.ary(callback, 0))
-      .catch(callback);
-  }
-  return promise;
-}
-
-/**
  * Copy a file
  *
  * Copy a file from source location `source` to destination `dest`,
@@ -96,8 +75,7 @@ function _file(source, destination, options, callback) {
     ? path.resolve(destination, path.basename(source))
     : destination;
 
-  return runPromise(
-    (async () => {
+  return ((async () => {
       const fsstats = new FSStatCache(options.dereference);
 
       if ((await fsstats.stat(source)).isDirectory()) {
@@ -108,8 +86,7 @@ function _file(source, destination, options, callback) {
         , options.limit
         , fsstats);
       }
-    })()
-  , callback);
+  })()).nodeify(callback);
 }
 
 /**
@@ -156,8 +133,7 @@ function _directory(directory, destination, options, callback) {
   // fallback to sane defaults
   options = defaults(options);
 
-  return runPromise(
-    (async () => {
+  return ((async () => {
       const fsstats = new FSStatCache(options.dereference);
 
       if (!(await fsstats.stat(directory)).isDirectory()) {
@@ -193,8 +169,7 @@ function _directory(directory, destination, options, callback) {
         // Create the directories and files.
         await commit(mappings, options.limit, fsstats);
       }
-    })()
-  , callback);
+    })()).nodeify(callback);
 };
 
 /**
@@ -212,11 +187,10 @@ function _kopeer(source, dest, options, callback) {
 
   const fsstats = new FSStatCache(options.dereference);
 
-  return runPromise(
-    fsstats.stat(source)
-      .then(stat => stat.isDirectory() ? _directory : _file)
-      .then(fn => fn(source, dest, options))
-  , callback);
+  return fsstats.stat(source)
+    .then(stat => stat.isDirectory() ? _directory : _file)
+    .then(fn => fn(source, dest, options))
+    .nodeify(callback);
 };
 
 module.exports = _kopeer;

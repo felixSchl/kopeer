@@ -227,7 +227,7 @@ describe('kopeer', () => {
         path.resolve(src, 'a')
       , path.resolve(out, 'a')
       , function(err) {
-          assert.strictEqual(err, undefined);
+          assert.strictEqual(err, null);
           done(err);
         }
       );
@@ -238,7 +238,7 @@ describe('kopeer', () => {
         path.resolve(src, 'DOESNT_EXIST')
       , path.resolve(out, 'a')
       , function(err) {
-          assert.notStrictEqual(err, undefined);
+          assert.notStrictEqual(err, null);
           assert.strictEqual(err.code, 'ENOENT');
           done();
         }
@@ -250,7 +250,7 @@ describe('kopeer', () => {
         path.resolve(src, 'a')
       , path.resolve(out, 'a')
       , function(err) {
-          assert.strictEqual(err, undefined);
+          assert.strictEqual(err, null);
           done(err);
         });
     });
@@ -260,7 +260,7 @@ describe('kopeer', () => {
         path.resolve(src, 'DOESNT_EXIST')
       , path.resolve(out, 'a')
       , function(err) {
-          assert.notStrictEqual(err, undefined);
+          assert.notStrictEqual(err, null);
           assert.strictEqual(err.code, 'ENOENT');
           done();
         });
@@ -268,14 +268,14 @@ describe('kopeer', () => {
 
     it('`kopeer.directory` receives a callback', function(done) {
       kopeer.directory(src, out, function(err) {
-        assert.strictEqual(err, undefined);
+        assert.strictEqual(err, null);
         done(err);
       });
     });
 
     it('`kopeer.directory` receives a callback with `err` set on failure', function(done) {
       kopeer.directory(src + 'DOESNT_EXIST', out, function(err) {
-        assert.notStrictEqual(err, undefined);
+        assert.notStrictEqual(err, null);
         assert.strictEqual(err.code, 'ENOENT');
         done();
       });
