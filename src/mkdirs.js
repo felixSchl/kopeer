@@ -31,7 +31,7 @@ export default async function(directory) {
       await (function mkdir() {
         debug(
           `Creating directory \`${ _curpath }\` `
-        + `(Try { tries + 1 } / $ { maxTries })`);
+        + `(Try ${ tries + 1 } / ${ maxTries })`);
         return fs.mkdirAsync(_curpath)
           .catch(function(e) {
             switch (e.code) {
