@@ -142,12 +142,25 @@ function _directory(directory, destination, options, callback) {
 
         let filter;
         if (options.ignore) {
+
           const minis = _.map(
             _.isArray(options.ignore)
               ? options.ignore
               : [ options.ignore ]
-          , p => new Minimatch(p));
-          filter = p => _.all(minis, m => m.match(p) === false);
+          , p => new Minimatch(p, {
+              dot: true
+            , flipNegate: true
+            }));
+
+          filter = async p => {
+            const rp = path.relative(directory, p)
+            return ((await(fsstats.stat(p))).isDirectory())
+              ? true
+              : !_.foldl(
+                  minis
+                , (acc, m) => m.match(rp) ? !m.negate : acc
+                , false);
+          }
         } else {
           filter = options.filter
             ? options.filter

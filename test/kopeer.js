@@ -210,27 +210,37 @@ describe('kopeer', () => {
           assert.deepEqual(filtered(srcFiles), outFiles);
       });
 
-      it('files are copied correctly', async () => {
-        await kopeer.directory(
-          src
-        , out
-        , { ignore: [ '**/*a' ] });
+      it('ignores the given pattern', async () => {
+        await kopeer.directory(src, out, { ignore: [ '**/*a' ] });
         const srcFiles = await readDirFilesAsync(src, 'utf8', true)
-            , outFiles = await readDirFilesAsync(out, 'utf8', true)
-            , filtered = xs =>
-                _.omit(_.mapValues(xs, (file, filename) =>
-                  file instanceof Object
-                    ? filtered(file)
-                    : _.last(filename) == 'a' ? undefined : file)
-                , v => v === undefined);
-          assert.deepEqual(filtered(srcFiles), outFiles);
+            , outFiles = await readDirFilesAsync(out, 'utf8', true);
+        delete srcFiles['a'];
+        delete srcFiles['sub']['a'];
+        assert.deepEqual(srcFiles, outFiles);
+      });
+
+      it('ignores the given negate pattern', async () => {
+        await kopeer.directory(src, out, { ignore: [ '**', '!**/*a' ] });
+        const srcFiles = await readDirFilesAsync(src, 'utf8', true)
+            , outFiles = await readDirFilesAsync(out, 'utf8', true);
+
+        delete srcFiles['b'];
+        delete srcFiles['c'];
+        delete srcFiles['d'];
+        delete srcFiles['e'];
+        delete srcFiles['f'];
+        delete srcFiles['sub']['b'];
+        delete srcFiles['inter.sper.sed'];
+        delete srcFiles['some.app'];
+
+        assert.deepEqual(srcFiles, outFiles);
       });
     });
 
     describe('writing over existing files', () => {
       it('the copy is completed successfully', async () => {
-        await kopeer.directory(src, out, { clobber: false })
-        await kopeer.directory(src, out, { clobber: false })
+        await kopeer.directory(src, out);
+        await kopeer.directory(src, out);
       });
     });
 

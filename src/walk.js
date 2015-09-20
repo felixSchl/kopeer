@@ -39,7 +39,7 @@ async function walkDirectory(top, dir, filter, fsstats) {
     .map(filename => path.resolve(dir, filename))
     .filter(fullpath => Bluebird.resolve(
       filter
-        ? filter(path.relative(top, fullpath))
+        ? filter(fullpath)
         : true))
     .map(async (filepath) => ({
         filepath: filepath
