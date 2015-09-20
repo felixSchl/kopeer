@@ -19,12 +19,12 @@ const mkdirs = require('../dist/mkdirs')
     , map = require('../dist/map');
 
 describe('Internal module: Worker', () => {
-  it('should emit the `completed` event', async () => {
+  it('should emit the `drain` event', async () => {
     const worker = new Worker(
       w => Bluebird.resolve(w).delay(10)
     , { limit: 1 });
     await new Bluebird(resolve => {
-      worker.on('completed', resolve);
+      worker.on('drain', resolve);
       worker.queue(1);
       worker.queue(2);
     });
@@ -55,12 +55,12 @@ describe('Internal module: Worker', () => {
       , recover: (e, retry) => e.code === 'EMFILE' ? retry() : null
       });
     await new Bluebird(resolve => {
-      worker.on('completed', resolve);
+      worker.on('drain', resolve);
       worker.queue(1);
     });
   });
 
-  it('should emit the `error` event', async () => {
+  it('should emit the `failed` event', async () => {
     let hasThrown = false;
     const worker = new Worker(
       w => {
@@ -73,9 +73,31 @@ describe('Internal module: Worker', () => {
       }
     , { limit: 1 });
     await new Bluebird((resolve, reject) => {
-      worker.on('completed', reject);
-      worker.on('error', resolve);
+      worker.on('drain', reject);
+      worker.on('failed', resolve);
       worker.queue(1);
+    });
+  });
+
+  it('should send the `failed` event on canellation', async () => {
+    let hasThrown = false;
+    const worker = new Worker(
+      w => {
+        if (hasThrown) {
+          return Bluebird.resolve(w).delay(10);
+        } else {
+          hasThrown = true;
+          return Bluebird.reject({ code: 'EMFILE' });
+        }
+      }
+    , { limit: 2
+      , recover: () => worker.kill()
+      });
+    await new Bluebird((resolve, reject) => {
+      worker.queue(1);
+      worker.queue(2);
+      worker.on('error', () => {})
+      worker.on('failed', resolve);
     });
   });
 });
