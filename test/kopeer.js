@@ -59,6 +59,25 @@ describe('Worker', () => {
       worker.queue(1);
     });
   });
+
+  it('should emit the `error` event', async () => {
+    let hasThrown = false;
+    const worker = new Worker(
+      w => {
+        if (hasThrown) {
+          return Bluebird.resolve(w);
+        } else {
+          hasThrown = true;
+          return Bluebird.reject({ code: 'EMFILE' });
+        }
+      }
+    , { limit: 1 });
+    await new Bluebird((resolve, reject) => {
+      worker.on('completed', reject);
+      worker.on('error', resolve);
+      worker.queue(1);
+    });
+  });
 });
 
 describe('kopeer', () => {

@@ -95,9 +95,13 @@ export default class Worker extends EventEmitter {
       , e => {
           let shouldRetry = false;
           this._recover(e, () => { shouldRetry = true; });
-          return shouldRetry
-            ? Bluebird.resolve(this._run(work, threadIndex))
-            : Bluebird.reject(e)
+          if (shouldRetry) {
+            return this._run(work, threadIndex);
+          } else {
+            this.emit('error', e, work);
+            // Need to resolve in order to mark this thread as `free`
+            return Bluebird.resolve();
+          }
         });
   }
 
