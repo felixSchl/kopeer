@@ -7,10 +7,8 @@ var gulp = require('gulp')
 gulp.task('make', function () {
   return gulp.src(['src/**/*.js'])
     .pipe(sourcemaps.init())
-    .pipe(babel({ optional: [
-      'runtime'
-    , 'bluebirdCoroutines'
-    ] }))
+    .pipe(babel({ optional: [ 'bluebirdCoroutines' ] }))
+    .pipe(babel({ optional: [ 'runtime' ] }))
     .pipe(sourcemaps.write('.'))
     .pipe(gulp.dest('dist'));
 });
@@ -18,6 +16,7 @@ gulp.task('make', function () {
 gulp.task('make:resilient', function () {
   return gulp.src(['src/**/*.js'])
     .pipe(sourcemaps.init())
+    .pipe(babel({ optional: [ 'bluebirdCoroutines' ] }))
     .pipe(babel({ optional: [ 'runtime' ] }))
     .on('error', function(error) {
       console.error(error.stack);
