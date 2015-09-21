@@ -2,6 +2,10 @@
 
 var gulp = require('gulp')
   , sourcemaps = require('gulp-sourcemaps')
+  , git = require('gulp-git')
+  , bump = require('gulp-bump')
+  , filter = require('gulp-filter')
+  , tag = require('gulp-tag-version')
   , babel = require('gulp-babel');
 
 gulp.task('make', function () {
@@ -12,6 +16,22 @@ gulp.task('make', function () {
     .pipe(sourcemaps.write('.'))
     .pipe(gulp.dest('dist'));
 });
+
+function inc(importance) {
+  return function() {
+    return gulp.src(['./package.json', './bower.json'])
+        .pipe(bump({ type: importance }))
+        .pipe(gulp.dest('./'))
+        .pipe(git.commit('Bump version'))
+        .pipe(filter('package.json'))
+        .pipe(tag());
+  };
+}
+
+gulp.task('patch',      inc('patch'));
+gulp.task('feature',    inc('minor'));
+gulp.task('prerelease', inc('prerelease'));
+gulp.task('release',    inc('major'));
 
 gulp.task('make:resilient', function () {
   return gulp.src(['src/**/*.js'])
