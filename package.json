@@ -7,7 +7,8 @@
     "test": "test"
   },
   "scripts": {
-    "test": "mocha --compilers js:babel/register"
+    "build": "gulp",
+    "test": "gulp && mocha --compilers js:babel/register"
   },
   "repository": {
     "type": "git",
