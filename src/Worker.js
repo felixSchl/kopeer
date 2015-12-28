@@ -18,7 +18,7 @@ function WorkFailedError(work, e) {
   this.reason = e;
 };
 
-util.inherits(module.exports, Error);
+util.inherits(WorkFailedError, Error);
 
 /**
  * A promise-based worker that scales as needed.
