@@ -65,8 +65,10 @@ function _throttled(ws, limit, f, onNext, onCompleted, onError) {
   , { limit: limit
     , recover: onError });
   worker.on('next', ({ r, i }) => { onNext(r, i); });
-  return new Bluebird(resolve => {
+  return new Bluebird((resolve, reject) => {
     worker.once('completed', () => resolve(onCompleted()));
+    worker.once('failed', e => reject(e));
+    worker.once('drain', () => worker.dispose());
     if (ws.length) {
       _.each(ws, (w, i) => worker.queue({ i: i, w: w }));
     } else {

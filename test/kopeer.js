@@ -18,13 +18,13 @@ const mkdirs = require('../dist/mkdirs')
     , Worker = require('../dist/Worker')
     , map = require('../dist/map');
 
-describe('Worker', () => {
-  it('should emit the `completed` event', async () => {
+describe('Internal module: Worker', () => {
+  it('should emit the `drain` event', async () => {
     const worker = new Worker(
       w => Bluebird.resolve(w).delay(10)
     , { limit: 1 });
     await new Bluebird(resolve => {
-      worker.on('completed', resolve);
+      worker.on('drain', resolve);
       worker.queue(1);
       worker.queue(2);
     });
@@ -55,12 +55,12 @@ describe('Worker', () => {
       , recover: (e, retry) => e.code === 'EMFILE' ? retry() : null
       });
     await new Bluebird(resolve => {
-      worker.on('completed', resolve);
+      worker.on('drain', resolve);
       worker.queue(1);
     });
   });
 
-  it('should emit the `error` event', async () => {
+  it('should emit the `failed` event', async () => {
     let hasThrown = false;
     const worker = new Worker(
       w => {
@@ -73,10 +73,68 @@ describe('Worker', () => {
       }
     , { limit: 1 });
     await new Bluebird((resolve, reject) => {
-      worker.on('completed', reject);
-      worker.on('error', resolve);
+      worker.on('drain', reject);
+      worker.on('failed', resolve);
       worker.queue(1);
     });
+  });
+
+  it('should send the `failed` event on canellation', async () => {
+    let hasThrown = false;
+    const worker = new Worker(
+      w => {
+        if (hasThrown) {
+          return Bluebird.resolve(w).delay(10);
+        } else {
+          hasThrown = true;
+          return Bluebird.reject({ code: 'EMFILE' });
+        }
+      }
+    , { limit: 2
+      , recover: () => worker.kill()
+      });
+    await new Bluebird((resolve, reject) => {
+      worker.queue(1);
+      worker.queue(2);
+      worker.on('error', () => {})
+      worker.on('failed', resolve);
+    });
+  });
+});
+
+describe('Internal module: Map', function () {
+  it('`map.chunked` should processes all items', async () => {
+    let i = 0;
+    await map.chunked(_.range(100), 3, n => {
+      assert.equal(i, n);
+      i++;
+      return Bluebird.resolve();
+    });
+    assert.equal(i, 100);
+  });
+
+  it('`map.throttledOrd` should return in order', async () => {
+    assert.deepEqual(
+      _.range(100)
+    , await map.throttledOrd(_.range(100), 3, _.identity));
+  });
+
+  it('`map.throttled` should collect all items', async () => {
+    const res = await map.throttled(_.range(100), 3, _.identity);
+    _.each(_.range(100), i => assert(_.contains(res, i)));
+  });
+
+  it('`map.throttled` should collect all items', async () => {
+    let hasThrown = false;
+    const res = await map.throttled(_.range(100), 3, n => {
+      if (n === 1 && !hasThrown) {
+        hasThrown = true;
+        return Bluebird.reject({ code: 'EMFILE' })
+      } else {
+        return n
+      }
+    });
+    _.each(_.range(100), i => assert(_.contains(res, i)));
   });
 });
 
@@ -152,27 +210,37 @@ describe('kopeer', () => {
           assert.deepEqual(filtered(srcFiles), outFiles);
       });
 
-      it('files are copied correctly', async () => {
-        await kopeer.directory(
-          src
-        , out
-        , { ignore: [ '**/*a' ] });
+      it('ignores the given pattern', async () => {
+        await kopeer.directory(src, out, { ignore: [ '**/*a' ] });
         const srcFiles = await readDirFilesAsync(src, 'utf8', true)
-            , outFiles = await readDirFilesAsync(out, 'utf8', true)
-            , filtered = xs =>
-                _.omit(_.mapValues(xs, (file, filename) =>
-                  file instanceof Object
-                    ? filtered(file)
-                    : _.last(filename) == 'a' ? undefined : file)
-                , v => v === undefined);
-          assert.deepEqual(filtered(srcFiles), outFiles);
+            , outFiles = await readDirFilesAsync(out, 'utf8', true);
+        delete srcFiles['a'];
+        delete srcFiles['sub']['a'];
+        assert.deepEqual(srcFiles, outFiles);
+      });
+
+      it('ignores the given negate pattern', async () => {
+        await kopeer.directory(src, out, { ignore: [ '**', '!**/*a' ] });
+        const srcFiles = await readDirFilesAsync(src, 'utf8', true)
+            , outFiles = await readDirFilesAsync(out, 'utf8', true);
+
+        delete srcFiles['b'];
+        delete srcFiles['c'];
+        delete srcFiles['d'];
+        delete srcFiles['e'];
+        delete srcFiles['f'];
+        delete srcFiles['sub']['b'];
+        delete srcFiles['inter.sper.sed'];
+        delete srcFiles['some.app'];
+
+        assert.deepEqual(srcFiles, outFiles);
       });
     });
 
     describe('writing over existing files', () => {
       it('the copy is completed successfully', async () => {
-        await kopeer.directory(src, out, { clobber: false })
-        await kopeer.directory(src, out, { clobber: false })
+        await kopeer.directory(src, out);
+        await kopeer.directory(src, out);
       });
     });
 
@@ -345,40 +413,3 @@ describe('kopeer', () => {
     });
   });
 });
-
-describe('utilities', function () {
-  it('map.chunked processes all items', async () => {
-    let i = 0;
-    await map.chunked(_.range(100), 3, n => {
-      assert.equal(i, n);
-      i++;
-      return Bluebird.resolve();
-    });
-    assert.equal(i, 100);
-  });
-
-  it('map.throttledOrd returns in order', async () => {
-    assert.deepEqual(
-      _.range(100)
-    , await map.throttledOrd(_.range(100), 3, _.identity));
-  });
-
-  it('map.throttled collects all items', async () => {
-    const res = await map.throttled(_.range(100), 3, _.identity);
-    _.each(_.range(100), i => assert(_.contains(res, i)));
-  });
-
-  it('map.throttled collects all items', async () => {
-    let hasThrown = false;
-    const res = await map.throttled(_.range(100), 3, n => {
-      if (n === 1 && !hasThrown) {
-        hasThrown = true;
-        return Bluebird.reject({ code: 'EMFILE' })
-      } else {
-        return n
-      }
-    });
-    _.each(_.range(100), i => assert(_.contains(res, i)));
-  });
-});
-

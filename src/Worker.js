@@ -3,8 +3,22 @@ import assert from 'assert';
 import Bluebird from 'bluebird';
 import _debug from 'debug';
 import { EventEmitter } from 'events'
+import util from 'util';
 
 const debug = _debug('kopeer:worker');
+
+/**
+ * Error when a piece of work failed.
+ */
+function WorkFailedError(work, e) {
+  Error.captureStackTrace(this, this.constructor);
+  this.name = this.constructor.name;
+  this.message = `Work ${ work.toString() } failed: '${ e.toString() }'`;
+  this.work = work;
+  this.reason = e;
+};
+
+util.inherits(WorkFailedError, Error);
 
 /**
  * A promise-based worker that scales as needed.
@@ -38,6 +52,8 @@ export default class Worker extends EventEmitter {
     this._limit = limit;
     this._threads = [];
     this._queue = [];
+    this._disposed = false;
+    this._errors = new Bluebird.AggregateError();
   }
 
   _debugStatus() {
@@ -56,7 +72,7 @@ export default class Worker extends EventEmitter {
    * For every completed item the `next` event is emitted with the result of the
    * work.
    *
-   * Whenever all items in the queue have been processed, the `completed` event
+   * Whenever all items in the queue have been processed, the `drain` event
    * is fired.
    *
    * @param {any} work
@@ -74,6 +90,7 @@ export default class Worker extends EventEmitter {
         null, ['thread-' + threadIndex].concat(_.toArray(arguments)));
     };
     return this._fn(work)
+      .cancellable()
       .tap(this.emit.bind(this, 'next'))
       .then(
         next => {
@@ -86,21 +103,25 @@ export default class Worker extends EventEmitter {
             if (_.all(
               this._threads, (t, i) => i === threadIndex || !t.isPending()))
             {
-              ldebug('no threads pending - emitting `completed`');
-              this.emit('completed');
+              ldebug('no threads pending - emitting `drain`');
+              this.emit('drain');
             }
             return Bluebird.resolve();
           }
         }
       , e => {
-          let shouldRetry = false;
-          this._recover(e, () => { shouldRetry = true; });
-          if (shouldRetry) {
-            return this._run(work, threadIndex);
+          if (e instanceof Bluebird.CancellationError) {
+            ldebug('Cancelled!');
+            this._errors.push(new WorkFailedError(work, e));
           } else {
-            this.emit('error', e, work);
-            // Need to resolve in order to mark this thread as `free`
-            return Bluebird.resolve();
+            let shouldRetry = false;
+            this._recover(e, () => { shouldRetry = true; });
+            if (shouldRetry) {
+              return this._run(work, threadIndex);
+            } else {
+              this._errors.push(new WorkFailedError(work, e));
+              this.kill();
+            }
           }
         });
   }
@@ -118,6 +139,8 @@ export default class Worker extends EventEmitter {
    * @returns {undefined}
    */
   queue(work) {
+    if (this._disposed) { return; } // XXX: Throw error?
+
     const freeIndex = _.findIndex(this._threads, t => !t.isPending())
     if (freeIndex === -1) {
       if (this._threads.length < this._limit) {
@@ -138,12 +161,22 @@ export default class Worker extends EventEmitter {
     }
   }
 
-  _reset() {
+  dispose() {
+    if (this._disposed) { return; }
+
+    _.each(this._threads, t => t.cancel());
+
+    if (this._errors.length) {
+      this.emit('failed', this._errors);
+    } else {
+      this.emit('completed');
+    }
+
     this._threads.length = 0;
     this._queue.length = 0;
   }
 
-  dispose() {
-    this._reset();
+  kill() {
+    this.dispose();
   }
 }
