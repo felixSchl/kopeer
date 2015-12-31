@@ -68,6 +68,7 @@ kopeer.file('/files/foo', '/backup/bar', function(err) { /* ... */ });
 
 * **callback (Function) [default: undefined]**
     * Invoke the given node-style callback with any errors and no result:
+
       ```javascript
       function(err) { /*...*/ }
       ```
@@ -116,6 +117,7 @@ kopeer.directory('/files', '/backup', function(err) { /* ... */ });
 
 * **callback (Function) [default: undefined]**
     * Invoke the given node-style callback with any errors and no result:
+
       ```javascript
       function(err) { /*...*/ }
       ```
