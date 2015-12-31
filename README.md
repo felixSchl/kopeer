@@ -125,11 +125,7 @@ kopeer.directory('/files', '/backup', function(err) { /* ... */ });
 Business as usual. Get started by running the test suite:
 
 ```
-git clone git@github.com:felixschl/kopeer
-cd kopeer
-npm install -g gulp
 npm install
-gulp
 npm test
 ```
 
